@@ -11,6 +11,13 @@ on:
   push:
     branches: [main]
     paths: ['docs/**', '.github/workflows/pages.yml']
+  # State commits are made by GITHUB_TOKEN (issue-ops/sweep/grade), and GitHub does
+  # not let GITHUB_TOKEN commits trigger the push event above (loop prevention). So
+  # also redeploy when those workflows finish — workflow_run fires on completion, not
+  # on the bot commit, so it is not suppressed.
+  workflow_run:
+    workflows: ["Journal Club — issue ops", "Journal Club — daily sweep", "Journal Club — grade a review"]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +31,8 @@ concurrency:
 
 jobs:
   deploy:
+    # For workflow_run, only deploy if the state workflow succeeded (else it's a no-op).
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     # Silence the harmless punycode (DEP0040) deprecation warning emitted by
     # actions/deploy-pages' bundled deps on node24 — cosmetic, not our code.
     env:
