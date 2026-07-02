@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Daily sweep: expire overdue claims, send reminders, recompute aggregates.
+
+Mirrors the website repo's scheduled-Action pattern (checkout → run → commit-back).
+Idempotent: it reads absolute timestamps, not "what changed since yesterday", so a
+skipped day self-heals on the next run. Per-paper ``reminded`` markers guarantee
+each nudge fires once.
+
+Writes ``notifications.json`` (git-ignored) — a list of {issue, body} the workflow
+posts as issue comments (GitHub then emails the @-mentioned assignee). No SMTP.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime
+
+import params
+import rank
+import state
+
+THRESHOLDS = sorted(params.REMIND_BEFORE_DAYS, reverse=True)  # e.g. [3, 1]
+
+
+def _remaining_days(due: datetime, now: datetime) -> float:
+    return (due - now).total_seconds() / 86400.0
+
+
+def run(now: datetime | None = None) -> list[dict]:
+    now = now or state.now_utc()
+    claims = state.load_claims()
+    notifications: list[dict] = []
+    touched: set[int] = set()
+
+    for issue, claim in claims.items():
+        who = claim["participant"]
+        for pid, rec in claim["papers"].items():
+            if rec["state"] != "active":
+                continue
+            due = state.parse(rec["due_at"])
+            remaining = _remaining_days(due, now)
+
+            if remaining <= 0:  # expire = auto-withdraw, no penalty, zero points
+                rec["state"] = "expired"
+                touched.add(issue)
+                notifications.append({"issue": issue, "body":
+                    f"⌛ @{who} your claim on `{pid}` reached its deadline "
+                    f"({rec['due_at'][:10]}) and returned to the pool — **no penalty**. "
+                    f"You can claim it again whenever it is open."})
+                continue
+
+            to_fire = [d for d in THRESHOLDS
+                       if remaining <= d and f"pre{d}" not in rec["reminded"]]
+            if to_fire:
+                n = max(1, int(remaining + 0.999))  # ceil, ≥1
+                rec["reminded"].extend(f"pre{d}" for d in to_fire)
+                touched.add(issue)
+                notifications.append({"issue": issue, "body":
+                    f"⏰ @{who} your claim on `{pid}` is due in ~{n} day(s) "
+                    f"(**{rec['due_at'][:10]}**). Not going to make it? Reply "
+                    f"`/extend {pid}` for a one-time +{params.EXTENSION_DAYS} days, "
+                    f"or `/withdraw {pid}` to return it — no penalty."})
+
+    for issue in touched:
+        state.save_claim(claims[issue])
+
+    # guaranteed daily refresh of the public aggregates
+    claims = state.load_claims()
+    status = state.write_status(state.load_pool(), claims)
+    rank.write_ranking(claims, state.load_ledger(), status)
+
+    (state.REPO / "notifications.json").write_text(
+        json.dumps(notifications, indent=2, ensure_ascii=False) + "\n")
+    return notifications
+
+
+if __name__ == "__main__":
+    notes = run()
+    print(f"sweep: {len(notes)} notification(s) queued")
