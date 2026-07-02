@@ -1,0 +1,103 @@
+name: Journal Club — issue ops
+
+# Processes claim forms and /claim /withdraw /submit /extend comments.
+# Follows the repo's mutate-and-push pattern (cf. the website calendar.yml):
+# run Python -> commit the updated state -> push back, with a rebase retry loop
+# so two issues processed at once never clobber each other.
+
+on:
+  issues:
+    types: [opened, edited, closed]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+# Serialise pushes from this workflow; do NOT cancel queued runs (each carries a
+# distinct user action). Real correctness comes from the rebase-retry loop below.
+concurrency:
+  group: jc-state-push
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    # never react to the bot's own actions (its comments, its auto-close on withdraw)
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
+      - name: Apply the issue/command to state
+        id: apply
+        env:
+          ORGANIZERS: ${{ vars.ORGANIZERS }}
+        run: python scripts/issue_ops.py
+
+      - name: Post reply comment
+        if: hashFiles('comment.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s comment.md ]; then
+            gh issue comment "${{ github.event.issue.number }}" --body-file comment.md
+          fi
+
+      - name: Apply labels + assignee
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, subprocess, os
+          a = json.load(open("actions.json"))
+          if not a["changed"]:
+              raise SystemExit(0)
+          n = str(a["issue"])
+          for lb in a["add_labels"]:
+              subprocess.run(["gh","issue","edit",n,"--add-label",lb], check=False)
+          for who in a["assignees"]:
+              subprocess.run(["gh","issue","edit",n,"--add-assignee",who], check=False)
+          PY
+
+      - name: Close the issue when nothing needs the participant's action
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          a = json.load(open("actions.json"))
+          if a.get("close"):
+              subprocess.run(["gh", "issue", "close", str(a["issue"]), "--comment",
+                              "Nothing on this thread needs your action — closing it. "
+                              "Submitted papers are with the organizers for grading. "
+                              "Open a new claim anytime."], check=False)
+          PY
+
+      - name: Commit + push state (rebase-retry loop)
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          # nothing to commit -> exit cleanly
+          git add claims docs/data/status.json
+          if git diff --cached --quiet; then echo "no state change"; exit 0; fi
+          git commit -m "jc: issue #${{ github.event.issue.number }} state update"
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:${GITHUB_REF#refs/heads/}; then exit 0; fi
+            echo "push rejected, rebasing (attempt $i)"
+            git fetch origin
+            # re-apply intent on top of the freshly-fetched state, then re-commit
+            git reset --hard origin/${GITHUB_REF#refs/heads/}
+            ORGANIZERS='${{ vars.ORGANIZERS }}' python scripts/issue_ops.py
+            git add claims docs/data/status.json
+            git diff --cached --quiet && exit 0
+            git commit -m "jc: issue #${{ github.event.issue.number }} state update (retry $i)"
+            sleep $((RANDOM % 5 + 1))
+          done
+          echo "::error::could not push state after retries"; exit 1

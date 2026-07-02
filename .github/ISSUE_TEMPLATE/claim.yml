@@ -1,0 +1,50 @@
+name: Claim papers
+description: Claim up to 3 papers from the Journal Club pool to review.
+# The "Claim" buttons on the site prefill this title as "[claim] <Author> et al. <Year> - <Title>".
+# When opening the form manually, keep the "[claim] " prefix and add the paper(s) you're claiming.
+title: "[claim] "
+labels: ["claim"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Browse the [pool + leaderboard](https://indos-costaction.github.io/journal-club/)
+        and pick **up to three** papers. You may hold at most **3 active claims** at a
+        time; a paper closes to new claims once **5** people hold it. You then have
+        **12 days** per paper. See [`RULES.md`](../blob/main/RULES.md) and
+        [`HOWTO-claim.md`](../blob/main/HOWTO-claim.md).
+  - type: textarea
+    id: paper_ids
+    attributes:
+      label: Paper IDs
+      description: One or more pool IDs (e.g. `EEG-03`, `FMRI-11`), separated by spaces or newlines.
+      placeholder: "EEG-03 FMRI-11 DMRI-07"
+    validations:
+      required: true
+  - type: dropdown
+    id: attribution
+    attributes:
+      label: Attribution on the public leaderboard
+      description: Attributed shows your GitHub handle; anonymous shows a stable pseudonym.
+      options:
+        - attributed
+        - anonymous
+    validations:
+      required: true
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Consent (GDPR)
+      description: See [`CONSENT.md`](../blob/main/CONSENT.md).
+      options:
+        - label: >
+            I consent to the processing of my annotations and participation data, and to
+            publication of the anonymised/attributed annotation dataset, ranking, and
+            (if I qualify) co-authorship use of my contributions.
+          required: true
+  - type: markdown
+    attributes:
+      value: |
+        After you submit, a bot will confirm your claims and deadlines in a comment.
+        Manage this thread with comments: `/claim <ID>`, `/withdraw <ID>`,
+        `/submit <ID>`, `/extend <ID>`.
