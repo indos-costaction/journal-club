@@ -3,72 +3,110 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>INDoS Federated Journal Club</title>
+<title>Federated Journal Club — INDoS COST Action</title>
 <!-- Repo is auto-derived from the GitHub Pages URL. If this site is ever served
      from a custom domain, hard-set it here instead:
 <script>window.JC_REPO = "indos-costaction/journal-club";</script> -->
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>INDoS Federated Journal Club</h1>
-  <p class="sub">WG3 · Automated Preprocessing Pipelines — a summer reading activity, open to all.
-     Pick papers, annotate them, climb the board. <a id="claimTop" href="#">Claim papers →</a></p>
-  <div id="progress" class="progress" hidden>
-    <div class="bar"><div id="progressFill"></div></div>
-    <div id="progressText" class="muted"></div>
-  </div>
+<header class="site-header">
+  <nav class="navbar">
+    <a class="navbar-brand" href="https://www.indos-costaction.eu/">
+      <img src="assets/images/logo/indos-logo.png" alt="INDoS COST Action" height="40">
+    </a>
+    <ul class="nav-list">
+      <li><a href="https://www.indos-costaction.eu/">INDoS Home</a></li>
+      <li><a href="https://www.indos-costaction.eu/working-groups/wg3">WG3</a></li>
+      <li><a href="https://www.indos-costaction.eu/working-groups/wg3/federated-journal-club">About the Club</a></li>
+      <li><a class="active" href="./">Board</a></li>
+    </ul>
+  </nav>
 </header>
 
-<nav class="tabs">
-  <button data-tab="pool" class="active">Paper pool</button>
-  <button data-tab="board">Leaderboard</button>
-</nav>
+<main class="main-content">
+  <div class="container">
+    <div class="page-content">
+      <h1>Federated Journal Club</h1>
+      <p class="sub">WG3 · Automated Preprocessing Pipelines — a summer reading activity, open to all.
+         Pick papers, annotate them, climb the board. <a id="claimTop" href="#">Claim papers →</a></p>
 
-<main>
-  <section id="pool">
-    <div class="controls">
-      <input id="search" type="search" placeholder="Search title / author / ID…" aria-label="Search">
-      <select id="modality" aria-label="Modality"><option value="">All modalities</option></select>
-      <select id="status" aria-label="Status">
-        <option value="">All statuses</option>
-        <option value="open">Open</option>
-        <option value="closed">Closed (5 claimants)</option>
-        <option value="done">Done (≥3 reviews)</option>
-      </select>
-      <label class="chk"><input id="needy" type="checkbox"> Needs reviews only</label>
+      <div id="progress" class="progress" hidden>
+        <div class="bar"><div id="progressFill"></div></div>
+        <div id="progressText" class="muted"></div>
+      </div>
+
+      <nav class="tabs">
+        <button data-tab="pool" class="active">Paper pool</button>
+        <button data-tab="board">Leaderboard</button>
+      </nav>
+
+      <section id="pool">
+        <div class="controls">
+          <input id="search" type="search" placeholder="Search title / author / ID…" aria-label="Search">
+          <select id="modality" aria-label="Modality"><option value="">All modalities</option></select>
+          <select id="status" aria-label="Status">
+            <option value="">All statuses</option>
+            <option value="open">Open</option>
+            <option value="closed">Closed (5 claimants)</option>
+            <option value="done">Done (≥3 reviews)</option>
+          </select>
+          <label class="chk"><input id="needy" type="checkbox"> Needs reviews only</label>
+        </div>
+        <p id="poolCount" class="muted"></p>
+        <table id="poolTable">
+          <thead><tr>
+            <th>ID</th><th>Modality</th><th>Paper</th>
+            <th title="copies currently drawn">Claims</th>
+            <th title="reports received">Reviews</th>
+            <th>Status</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section id="board" hidden>
+        <p class="muted">Ranked by cumulative quality points (Σ weighted rubric score over floor-passing
+          reviews). Withdrawals, expiries, and below-floor reviews earn nothing.</p>
+        <table id="boardTable">
+          <thead><tr><th>#</th><th>Participant</th><th>Points</th><th>Reviews</th><th>Mean</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p id="boardEmpty" class="muted" hidden>No graded reviews yet — be the first on the board.</p>
+      </section>
+
+      <p class="muted source-note">
+        Generated data refreshes daily. Source of truth is this repo's <code>claims/</code> +
+        <code>ledger/</code>. Original PDFs are never hosted — obtain them via your institution.
+        <span id="stamp"></span>
+      </p>
     </div>
-    <p id="poolCount" class="muted"></p>
-    <table id="poolTable">
-      <thead><tr>
-        <th>ID</th><th>Modality</th><th>Paper</th>
-        <th title="copies currently drawn">Claims</th>
-        <th title="reports received">Reviews</th>
-        <th>Status</th><th></th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <section id="board" hidden>
-    <p class="muted">Ranked by cumulative quality points (Σ weighted rubric score over floor-passing
-      reviews). Withdrawals, expiries, and below-floor reviews earn nothing.</p>
-    <table id="boardTable">
-      <thead><tr><th>#</th><th>Participant</th><th>Points</th><th>Reviews</th><th>Mean</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <p id="boardEmpty" class="muted" hidden>No graded reviews yet — be the first on the board.</p>
-  </section>
+  </div>
 </main>
 
-<footer>
-  <p class="muted">
-    Generated data refreshes daily. Source of truth is this repo's <code>claims/</code> +
-    <code>ledger/</code>. Original PDFs are never hosted — obtain them via your institution.
-    <span id="stamp"></span>
-  </p>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-content">
+      <table>
+        <tr>
+          <td class="foot-cost">
+            <a href="https://www.cost.eu"><img src="assets/images/logo/cost-logo-white.png" height="75" alt="COST"></a>
+          </td>
+          <td class="foot-copy">
+            <p>&copy; <span id="year"></span> INDoS COST Action.</p>
+            <p>Federated Journal Club · WG3 — Automated Preprocessing Pipelines.</p>
+            <p>All rights reserved.</p>
+          </td>
+          <td class="foot-eu">
+            <a href="https://commission.europa.eu/"><img src="assets/images/logo/eu-funded-white.png" height="50" alt="Funded by the European Union"></a>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
 </footer>
 
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
 <script src="app.js"></script>
 </body>
 </html>

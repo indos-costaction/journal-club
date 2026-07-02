@@ -1,61 +1,198 @@
-:root {
-  --bg: #ffffff; --fg: #1b1f24; --muted: #6a737d; --line: #e4e8ee;
-  --accent: #2b6cb0; --accent-fg: #fff;
-  --open: #2f855a; --closed: #b7791f; --done: #4a5568;
-  --card: #f7f9fc;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --line: #21262d;
-    --accent: #4d9fe6; --card: #161b22;
-    --open: #56d364; --closed: #e3b341; --done: #a0aec0;
-  }
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; background: var(--bg); color: var(--fg);
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-header, nav, main, footer { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
-header { padding-top: 28px; }
-h1 { margin: 0 0 4px; font-size: 1.7rem; }
-.sub { margin: 0 0 14px; color: var(--muted); }
-.sub a { color: var(--accent); font-weight: 600; text-decoration: none; }
-.muted { color: var(--muted); font-size: .9rem; }
-.meta { color: var(--muted); font-size: .82rem; }
+/* INDoS Federated Journal Club — brand-aligned with indos-costaction.eu.
+   Palette + chrome mirror website/assets/css/style.css; SPA components
+   (tabs, tables, badges, progress, claim button) restyled on-brand. */
 
+:root {
+  /* INDoS brand palette (from the logo brand guide) */
+  --logo-orange: #F9B34B;
+  --logo-turquoise: #60BFAF;
+  --logo-lavender: #BE5EAC;
+  --logo-purple: #5D288F;
+  --logo-blue: #122B62;
+
+  /* Semantic tokens mapped onto the brand */
+  --bg: #f9f9f9;
+  --surface: #ffffff;
+  --fg: #333333;
+  --muted: #6a737d;
+  --line: #e4e8ee;
+  --card: #f8f9fa;
+  --accent: #3498db;
+  --accent-fg: #ffffff;
+
+  /* Pool/board status colours (kept semantic, white text) */
+  --open: #2f855a;
+  --closed: #b7791f;
+  --done: var(--logo-purple);
+}
+
+/* Reset & base */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  background: var(--surface);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navbar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.navbar-brand { display: inline-flex; align-items: center; }
+.navbar-brand img { height: 40px; display: block; }
+
+.nav-list {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+  align-items: center;
+}
+
+.nav-list a {
+  text-decoration: none;
+  color: #555;
+  font-weight: 500;
+  transition: color 0.3s ease;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-list a:hover,
+.nav-list a.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Main content band */
+.main-content {
+  min-height: calc(100vh - 240px);
+  padding: 3rem 0;
+  background: var(--surface);
+  margin-top: 1rem;
+}
+
+.page-content { font-size: 1.05rem; }
+
+.page-content h1 {
+  font-size: 2rem;
+  margin: 0 0 0.5rem;
+  color: var(--logo-blue);
+}
+
+.sub { margin: 0 0 1.25rem; color: var(--muted); font-size: 1rem; }
+.sub a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.sub a:hover { text-decoration: underline; }
+
+.muted { color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.meta { color: var(--muted); font-size: .82rem; }
+.source-note { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+
+/* Progress bar */
 .progress { margin: 8px 0 4px; }
-.bar { height: 9px; background: var(--card); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
-#progressFill { height: 100%; background: var(--open); width: 0; transition: width .4s; }
+.bar {
+  height: 9px; background: var(--card); border-radius: 6px;
+  overflow: hidden; border: 1px solid var(--line);
+}
+#progressFill { height: 100%; background: var(--logo-turquoise); width: 0; transition: width .4s; }
 #progressText { margin-top: 6px; }
 
-.tabs { display: flex; gap: 8px; margin: 18px auto 10px; }
+/* Tabs */
+.tabs { display: flex; gap: 8px; margin: 1.25rem 0 1rem; }
 .tabs button {
   background: none; border: 1px solid var(--line); color: var(--fg);
   padding: 7px 16px; border-radius: 8px; cursor: pointer; font-size: .95rem;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
+.tabs button:hover { border-color: var(--accent); }
 .tabs button.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 
+/* Controls */
 .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; align-items: center; }
 .controls input[type=search], .controls select {
   padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--bg); color: var(--fg); font-size: .92rem;
+  background: var(--surface); color: var(--fg); font-size: .92rem;
 }
 .controls input[type=search] { flex: 1; min-width: 180px; }
+.controls input[type=search]:focus, .controls select:focus {
+  outline: none; border-color: var(--accent);
+}
 .chk { color: var(--muted); font-size: .9rem; display: flex; gap: 5px; align-items: center; }
 
+/* Tables */
 table { width: 100%; border-collapse: collapse; margin-top: 4px; }
 th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+th {
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--muted); font-weight: 600;
+}
 td.num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
 td a { color: var(--accent); text-decoration: none; }
 td a:hover { text-decoration: underline; }
 
-.badge { font-size: .74rem; padding: 2px 8px; border-radius: 20px; text-transform: capitalize; color: #fff; }
-.b-open { background: var(--open); } .b-closed { background: var(--closed); } .b-done { background: var(--done); }
+/* Status badges */
+.badge {
+  font-size: .74rem; padding: 2px 8px; border-radius: 20px;
+  text-transform: capitalize; color: #fff;
+}
+.b-open { background: var(--open); }
+.b-closed { background: var(--closed); }
+.b-done { background: var(--done); }
+
+/* Claim action */
 a.claim {
   display: inline-block; padding: 4px 12px; border-radius: 7px;
-  background: var(--accent); color: var(--accent-fg) !important; font-size: .84rem; text-decoration: none !important;
+  background: var(--accent); color: var(--accent-fg) !important;
+  font-size: .84rem; text-decoration: none !important;
+  transition: background 0.2s ease;
 }
-footer { margin: 30px auto 40px; border-top: 1px solid var(--line); padding-top: 14px; }
+a.claim:hover { background: #2980b9; }
+
 code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size: .85em; }
+
+/* Footer */
+.site-footer {
+  background: var(--logo-blue);
+  color: #ecf0f1;
+  padding: 2rem 0;
+  margin-top: 3rem;
+  text-align: center;
+}
+.footer-content table { width: 100%; border-collapse: collapse; }
+.footer-content td { border: none; vertical-align: middle; padding: 0.5rem 0; }
+.footer-content .foot-cost { text-align: left; }
+.footer-content .foot-copy { text-align: center; }
+.footer-content .foot-eu { text-align: right; }
+.footer-content p { margin: 0.5rem 0; color: #ecf0f1; }
+.footer-content img { display: inline-block; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar { flex-direction: column; align-items: flex-start; }
+  .nav-list { flex-direction: column; gap: 0.5rem; width: 100%; align-items: flex-start; }
+  .footer-content td { display: block; text-align: center !important; }
+}
