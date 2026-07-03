@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-03T08:58:12Z",
+  "generated_at": "2026-07-03T13:29:13Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -7,12 +7,12 @@
     "deadline_days": 12
   },
   "totals": {
-    "papers": 234,
+    "papers": 242,
     "done": 0,
     "closed": 0,
-    "open": 234,
+    "open": 242,
     "reviews_completed": 0,
-    "total_outstanding": 702
+    "total_outstanding": 726
   },
   "papers": {
     "EEG-R1": {
@@ -295,6 +295,22 @@
       "status": "open",
       "outstanding_need": 3
     },
+    "EEG-32": {
+      "modality": "EEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "EEG-33": {
+      "modality": "EEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
     "MEG-R1": {
       "modality": "MEG",
       "level": 0,
@@ -400,6 +416,54 @@
       "outstanding_need": 3
     },
     "MEG-12": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-13": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-14": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-15": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-16": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-17": {
+      "modality": "MEG",
+      "level": 1,
+      "live_claims": 0,
+      "completed_reviews": 0,
+      "status": "open",
+      "outstanding_need": 3
+    },
+    "MEG-18": {
       "modality": "MEG",
       "level": 1,
       "live_claims": 0,
