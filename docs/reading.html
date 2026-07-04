@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to read a paper — Federated Journal Club — INDoS COST Action</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <nav class="navbar">
+    <a class="navbar-brand" href="https://www.indos-costaction.eu/">
+      <img src="assets/images/logo/indos-logo.png" alt="INDoS COST Action" height="40">
+    </a>
+    <ul class="nav-list">
+      <li><a href="https://www.indos-costaction.eu/">INDoS Home</a></li>
+      <li><a href="https://www.indos-costaction.eu/wg3">WG3</a></li>
+      <li><a href="./participate.html">How to participate</a></li>
+      <li><a class="active" href="./reading.html">How to read a paper</a></li>
+      <li><a href="./">Board</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="main-content">
+  <div class="container">
+    <div class="page-content">
+      <h1>How to read a paper</h1>
+      <p class="lead">A practical, evidence-based guide for early-career trainees — useful well
+        beyond this club. Reading primary literature is a skill you build deliberately, not a
+        talent you either have or lack. Here is how experienced readers actually do it, why it
+        feels hard at first, and how to leave annotations that help the next reader and the COST
+        Action.</p>
+
+      <div class="admonition no-ai">
+        <div class="adm-title">⛔ No AI</div>
+        <p><strong>Read and annotate the paper yourself.</strong> The point is <em>your</em>
+          learning and <em>your</em> judgement — precisely what AI cannot do for you. For Journal
+          Club reviews, a no-AI declaration is required and AI-written reviews will not score. See
+          <a href="./participate.html#how-to-review-a-paper">How to review</a> for the full rules.</p>
+      </div>
+
+      <h2>Why this feels hard at first (and that's normal)</h2>
+      <p>If the <strong>Methods</strong> and <strong>Results</strong> sections are the parts you
+        find hardest, you are not doing it wrong — you are exactly where most trainees are. A
+        survey of 260 students and researchers found that skill in reading the Results section
+        develops slowly across an entire academic career, that inexperienced readers find Methods
+        and Results the most difficult, and that they tend to <em>undervalue</em> the Results and
+        the critical interpretation of data.<a href="#ref3">[3]</a> Experienced readers, by
+        contrast, do not read front-to-back — they move around a paper strategically. The good
+        news: this is a trainable skill, and structured practice is what closes the gap.<a href="#ref3">[3]</a><a href="#ref4">[4]</a></p>
+
+      <h2>Read in passes, not linearly</h2>
+      <p>The single most useful habit is to stop reading top-to-bottom. A widely used approach is
+        the <strong>three-pass method</strong>:<a href="#ref1">[1]</a></p>
+      <ul>
+        <li><strong>Pass 1 — triage (~5–30 min).</strong> Read in this order: <em>title →
+          abstract → figures → methods overview → conclusions</em>. Ask the four questions: what
+          problem, what data, what processing pipeline, what claim? You are mapping the skeleton
+          before annotating details — and deciding whether the paper is worth a deeper pass.</li>
+        <li><strong>Pass 2 — grasp the content (~1 h).</strong> Read carefully but do not get stuck
+          on every derivation. Study the figures and tables — this is where results actually live.
+          Note what you understand and, just as importantly, what you don't.</li>
+        <li><strong>Pass 3 — read like you'd re-run it.</strong> Reconstruct the work in your head:
+          could you reproduce the pipeline from what's written? Challenge each assumption. This is
+          the pass that turns reading into critical appraisal.</li>
+      </ul>
+
+      <h2>Read the methods as a pipeline</h2>
+      <p>Most papers in this pool describe or evaluate a <strong>preprocessing pipeline</strong>.
+        Read the methods as exactly that — a sequence of stages — and for each stage ask what it
+        does, what it assumes, and how it was evaluated:</p>
+      <ul>
+        <li><strong>Inputs:</strong> modality, acquisition, sample, data standard (BIDS?).</li>
+        <li><strong>Steps:</strong> each preprocessing stage — what it does, why, what it assumes.</li>
+        <li><strong>Parameters &amp; defaults:</strong> what was chosen, what was left at default,
+          what was justified.</li>
+        <li><strong>Outputs &amp; evaluation:</strong> derivatives produced; how quality/validity
+          was assessed.</li>
+      </ul>
+
+      <h2>Reading figures, results &amp; statistics</h2>
+      <p>The Results are the part trainees skip and experts scrutinise first.<a href="#ref3">[3]</a>
+        Don't take a figure's caption on trust — interrogate it: <em>What is actually plotted?
+        What are the axes, the units, the sample size? Do the figures support the claim in the
+        text, or a weaker version of it? What is <strong>not</strong> shown?</em> Treating each
+        figure as a small hypothesis test — asking what result would have changed the authors'
+        conclusion — is the core of figure-focused reading pedagogies such as the CREATE
+        method.<a href="#ref2">[2]</a></p>
+
+      <h2>Check reproducibility</h2>
+      <p>For a preprocessing paper, reproducibility <em>is</em> the science. Ask: is code,
+        containerisation, or versioning available? Could you re-run it? Does it use or extend
+        community standards such as BIDS? Transparency and reproducibility are increasingly
+        recognised as first-class criteria when appraising neuroimaging work,<a href="#ref5">[5]</a>
+        and they sit at the centre of the INDoS mission — so a paper's reproducibility is always
+        worth an explicit annotation.</p>
+
+      <h2>Mark what matters</h2>
+      <p>The goal is not to summarise a paper — it is to read it critically and leave annotations
+        that help the next reader. Good readers don't stop at "what did they do"; they ask "what
+        would I do next?"<a href="#ref2">[2]</a> As you read, mark:</p>
+      <ul>
+        <li><strong>What you did not understand.</strong> <em>Located</em> confusion ("why is the
+          field map applied before, not after, motion correction?") is far more valuable — to you
+          and to us — than a vague "confusing". Honest "I didn't get this" notes are a
+          <strong>strength</strong>, not a weakness: they are the single most useful signal for
+          building training materials.</li>
+        <li><strong>What has been contested, corrected, or superseded</strong> since publication —
+          and the newer work, if you know it.</li>
+        <li><strong>What matters for INDoS</strong> — the data-sharing, standardization, and
+          reproducibility angle.</li>
+        <li><strong>Your own judgement</strong> — strengths worth carrying forward, weaknesses, and
+          what you would do differently. Your voice counts.</li>
+      </ul>
+
+      <h2>A one-glance checklist</h2>
+      <ul class="checklist">
+        <li>Triaged first: title → abstract → figures → methods → conclusions.</li>
+        <li>Identified the problem, the data, the pipeline, and the central claim.</li>
+        <li>Read the methods as a pipeline (inputs, steps, parameters, evaluation).</li>
+        <li>Interrogated the figures and results — not just the caption.</li>
+        <li>Checked reproducibility: code, containers, versioning, BIDS — could you re-run it?</li>
+        <li>Annotated across the <em>whole</em> paper, anchored to exact passages.</li>
+        <li>Flagged what you didn't understand, and what's been contested or superseded.</li>
+        <li>Noted the INDoS angle and your own judgement.</li>
+        <li>Did it all yourself — no AI.</li>
+      </ul>
+
+      <h2>References</h2>
+      <ol class="refs">
+        <li id="ref1">[1] Keshav S. (2007). How to read a paper. <em>ACM SIGCOMM Computer
+          Communication Review</em> 37(3):83–84.
+          <a href="https://doi.org/10.1145/1273445.1273458">https://doi.org/10.1145/1273445.1273458</a></li>
+        <li id="ref2">[2] Hoskins SG, Stevens LM, Nehm RH. (2007). Selective use of the primary
+          literature transforms the classroom into a virtual laboratory. <em>Genetics</em>
+          176(3):1381–1389.
+          <a href="https://doi.org/10.1534/genetics.107.071183">https://doi.org/10.1534/genetics.107.071183</a></li>
+        <li id="ref3">[3] Hubbard KE, Dunbar SD. (2017). Perceptions of scientific research
+          literature and strategies for reading papers depend on academic career stage.
+          <em>PLoS ONE</em> 12(12):e0189753.
+          <a href="https://doi.org/10.1371/journal.pone.0189753">https://doi.org/10.1371/journal.pone.0189753</a></li>
+        <li id="ref4">[4] Goudsouzian LK, Hsu JL. (2023). Reading primary scientific literature:
+          approaches for teaching students in the undergraduate STEM classroom.
+          <em>CBE—Life Sciences Education</em> 22(3):es4.
+          <a href="https://doi.org/10.1187/cbe.22-10-0211">https://doi.org/10.1187/cbe.22-10-0211</a></li>
+        <li id="ref5">[5] Klapwijk ET, van den Bos W, Tamnes CK, Raschle NM, Mills KL. (2021).
+          Opportunities for increased reproducibility and replicability of developmental
+          neuroimaging. <em>Developmental Cognitive Neuroscience</em> 47:100902.
+          <a href="https://doi.org/10.1016/j.dcn.2020.100902">https://doi.org/10.1016/j.dcn.2020.100902</a></li>
+      </ol>
+
+      <h3>Further reading</h3>
+      <ul>
+        <li>Pain E. (2016). How to (seriously) read a scientific paper. <em>Science</em> Careers.
+          <a href="https://www.science.org/content/article/how-seriously-read-scientific-paper">science.org</a></li>
+        <li>Duke University Academic Resource Center. How to read and understand a scientific paper.
+          <a href="https://arc.duke.edu/how-to-read-and-understand-a-scientific-paper-a-guide-for-non-scientists/">arc.duke.edu</a></li>
+        <li>Raff JW. How to read and understand a scientific paper: a guide for non-scientists.
+          <em>LSE Impact Blog</em> (2016).
+          <a href="https://blogs.lse.ac.uk/impactofsocialsciences/2016/05/09/how-to-read-and-understand-a-scientific-paper-a-guide-for-non-scientists/">blogs.lse.ac.uk</a></li>
+      </ul>
+      <p class="refs-note">Original PDFs are never hosted here — obtain papers through your
+        institution's library access.</p>
+
+      <p class="page-links">Next: <a href="./participate.html">How to participate →</a>
+        &nbsp;·&nbsp; <a href="./">Browse the paper pool →</a></p>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-content">
+      <table>
+        <tr>
+          <td class="foot-cost">
+            <a href="https://www.cost.eu"><img src="assets/images/logo/cost-logo-white.png" height="75" alt="COST"></a>
+          </td>
+          <td class="foot-copy">
+            <p>&copy; <span id="year"></span> INDoS COST Action.</p>
+            <p>Federated Journal Club · WG3 — Automated Preprocessing Pipelines.</p>
+            <p>All rights reserved.</p>
+          </td>
+          <td class="foot-eu">
+            <a href="https://commission.europa.eu/"><img src="assets/images/logo/eu-funded-white.png" height="50" alt="Funded by the European Union"></a>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</footer>
+
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
