@@ -1,0 +1,19 @@
+{
+  "issue": 10,
+  "participant": "friedrich-ph-carrle",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-07-07T09:25:37Z"
+  },
+  "papers": {
+    "EEG-22": {
+      "state": "active",
+      "claimed_at": "2026-07-07T09:25:37Z",
+      "due_at": "2026-07-19T09:25:37Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
