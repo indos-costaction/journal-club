@@ -39,10 +39,31 @@ LEDGER_DIR = REPO / "ledger"
 # in-flight  : occupies a slot, counts as a live claim and against the cap
 # done       : a floor-passing completed review, counts toward the 3
 # freed      : slot released, contributes nothing
-IN_FLIGHT = {"active", "submitted"}
+#
+# The lifecycle:
+#
+#     active --/received (organizer)--> pending --/confirm (author)--> submitted --> completed
+#
+# `pending` = the upload is in our hands but the claimant has not yet signed it off.
+# It is IN_FLIGHT (the work is done; don't hand them a 4th paper meanwhile) and it
+# **cannot expire** — sweep only touches `active`, so reaching `pending` stops the
+# deadline clock. That is deliberate, not incidental: someone who uploads on day 11
+# must not be expired on day 12 while waiting on us.
+IN_FLIGHT = {"active", "pending", "submitted"}
 DONE = {"completed"}
-FREED = {"withdrawn", "recalled", "expired", "returned"}  # "recalled": legacy pre-rename data
+# "recalled": legacy pre-rename data. "rejected": removed by an organizer for a rules
+# violation — mechanically identical to withdrawn/returned, but kept distinct because
+# for a paper carrying co-authorship, "removed for a violation" and "scored badly" must
+# never be the same record.
+FREED = {"withdrawn", "recalled", "expired", "returned", "rejected"}
 ALL_STATES = IN_FLIGHT | DONE | FREED
+
+# The states in which the ball is in the *participant's* court. This is the concept
+# the auto-close predicate needs: a thread closes when nothing here needs them.
+# `submitted` is excluded (it's with the organizers for grading); `pending` is included
+# (it's waiting on their /confirm) — closing a thread we're about to ask them to reply
+# on would strand the handshake.
+NEEDS_PARTICIPANT = {"active", "pending"}
 
 
 # --- time helpers -----------------------------------------------------------
@@ -275,24 +296,108 @@ def apply_withdraw(claim: dict, ids: list[str]) -> Outcome:
     return out
 
 
-def apply_submit(claim: dict, ids: list[str], ref: str | None = None) -> Outcome:
-    """Record an upload as received.
+# A `/received` is an organizer asserting "I have this file in hand", so it is accepted
+# from `expired` as well as `active`. The deadline is enforced by a daily cron but
+# receipt is detected by a manual step — without this, an organizer running intake a day
+# late would expire a punctual upload. LimeSurvey's submitdate is the evidence, and the
+# organizer's judgement is the authority. `pending` is accepted too, which is what makes
+# a re-upload (and a re-run of the rebase-retry loop) idempotent.
+RECEIVABLE = {"active", "expired", "pending"}
 
-    Normally driven by the organizers' ``intake.py`` once the PDF is in hand, not by
-    the participant — uploading *is* submitting. ``ref`` is the LimeSurvey response
-    id (the store of record), carried in the comment as ``/submit <ID> ref:<n>``.
+
+def apply_receive(claim: dict, ids: list[str], now: datetime,
+                  ref: str | None = None) -> Outcome:
+    """Organizer-only: record that an upload is in hand, and ask for a sign-off.
+
+    Driven by ``intake.py`` once the PDF has been retrieved. This does **not** mean the
+    review is submitted — the form is open-access and its per-paper link is public, so
+    an upload proves only that *someone* had the link. Only the claimant's ``/confirm``
+    turns this into a submission.
+
+    ``ref`` is the LimeSurvey response id (the store of record), carried in the comment
+    as ``/received <ID> ref:<n>``.
     """
     out = Outcome()
     for raw in ids:
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
-        if not rec or rec["state"] != "active":
-            out.reject(f"`{pid}` — no active claim to submit (already submitted or returned?).")
+        if not rec:
+            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
             continue
-        rec["state"] = "submitted"
+        if rec["state"] not in RECEIVABLE:
+            out.reject(f"`{pid}` — can't record an upload against a `{rec['state']}` claim.")
+            continue
+        was = rec["state"]
+        rec["state"] = "pending"
+        # Restamp on a re-upload: the nudge clock should track the newest file, not the
+        # first one. `reminded` is reset for the same reason — the earlier nudges were
+        # about a file that has now been replaced.
+        rec["pending_since"] = iso(now)
+        rec["reminded"] = [m for m in rec.get("reminded", []) if not m.startswith("conf")]
         if ref:
             rec["submission_ref"] = ref
-        out.accept(f"`{pid}` received — it's with the organizers for grading.")
+        if was == "expired":
+            out.accept(f"`{pid}` — upload received after the deadline and **accepted**. "
+                       f"Confirm it below and it counts in full.")
+        elif was == "pending":
+            out.accept(f"`{pid}` — newer upload received; it replaces the earlier one. "
+                       f"Still needs your confirmation below.")
+        else:
+            out.accept(f"`{pid}` — upload received. It needs your confirmation below.")
+    return out
+
+
+def apply_confirm(claim: dict, ids: list[str], now: datetime) -> Outcome:
+    """Author-only: the claimant signs off on an upload made in their name.
+
+    This is the whole point of the handshake, and the only command an organizer may not
+    proxy (see ``issue_ops.COMMAND_ACL``). GitHub identity is the anchor: it is what
+    makes *this* person the author of the review, and — because the form's no-AI radio
+    is unauthenticated — the only place the no-AI declaration acquires a signatory.
+    """
+    out = Outcome()
+    for raw in ids:
+        pid = raw.strip().upper()
+        rec = claim["papers"].get(pid)
+        if not rec:
+            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            continue
+        if rec["state"] == "submitted":
+            out.accept(f"`{pid}` — already confirmed; it's with the organizers. Nothing to do.")
+            continue
+        if rec["state"] != "pending":
+            out.reject(f"`{pid}` — nothing to confirm (we have no upload for it yet). "
+                       f"Upload it first and we'll ask you here.")
+            continue
+        rec["state"] = "submitted"
+        rec["confirmed_at"] = iso(now)
+        out.accept(f"`{pid}` confirmed — thank you. It's with the organizers for grading.")
+    return out
+
+
+def apply_reject(claim: dict, ids: list[str], now: datetime, by: str) -> Outcome:
+    """Organizer-only: remove a review that broke the rules.
+
+    Works at **any** stage, including after grading — which is when a violation usually
+    surfaces. The ledger entry is deliberately left intact (it is the audit trail of
+    what was scored and by whom); ``rank.py`` stops counting it because the board
+    follows the claim, not the ledger alone.
+    """
+    out = Outcome()
+    for raw in ids:
+        pid = raw.strip().upper()
+        rec = claim["papers"].get(pid)
+        if not rec:
+            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            continue
+        if rec["state"] in FREED:
+            out.reject(f"`{pid}` — already `{rec['state']}`; it counts for nothing already.")
+            continue
+        rec["state"] = "rejected"
+        rec["rejected_at"] = iso(now)
+        rec["rejected_by"] = by
+        out.accept(f"`{pid}` has been withdrawn by the organizers and no longer counts. "
+                   f"The paper is back in the pool.")
     return out
 
 
@@ -301,6 +406,12 @@ def apply_extend(claim: dict, ids: list[str], now: datetime) -> Outcome:
     for raw in ids:
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
+        if rec and rec["state"] in ("pending", "submitted"):
+            # Not an error worth spending their extension on: the clock already stopped
+            # when we received the upload. Say so rather than "no active claim".
+            out.reject(f"`{pid}` — no deadline left to extend; we already have your "
+                       f"upload and the clock stopped.")
+            continue
         if not rec or rec["state"] != "active":
             out.reject(f"`{pid}` — no active claim to extend.")
             continue

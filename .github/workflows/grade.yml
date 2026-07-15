@@ -4,6 +4,9 @@ name: Journal Club — grade a review
 # into the ledger, flips the claim submitted->completed (or ->returned if below the
 # quality floor), and refreshes status.json + ranking.json so the board moves at once.
 # Only the scores cross into the public repo — never the PDF, never an email.
+#
+# `submitted` means the claimant has /confirm'd the upload as their own work: grade.py
+# refuses anything else, so an unconfirmed (`pending`) upload can never be scored.
 
 on:
   workflow_dispatch:

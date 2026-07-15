@@ -39,6 +39,23 @@ def run(now: datetime | None = None) -> list[dict]:
         who = claim["participant"]
         expired_any = False
         for pid, rec in claim["papers"].items():
+            if rec["state"] == "pending":
+                # Uploaded, not yet signed off. The deadline clock stopped here (that is
+                # the point of `pending`), so this never expires — we only nudge. Someone
+                # who did the work must not lose it for missing a notification; a
+                # genuinely abandoned upload is an organizer's /reject, not a timer's.
+                since = rec.get("pending_since")
+                if not since:
+                    continue    # pre-handshake record; nothing to measure from
+                waited = (now - state.parse(since)).total_seconds() / 86400.0
+                to_fire = [d for d in sorted(params.CONFIRM_NUDGE_DAYS)
+                           if waited >= d and f"conf{d}" not in rec["reminded"]]
+                if to_fire:
+                    rec["reminded"].extend(f"conf{d}" for d in to_fire)
+                    touched.add(issue)
+                    notifications.append({"issue": issue, "body": messages.confirm_nudge(
+                        who, pid, pool, max(1, int(waited)))})
+                continue
             if rec["state"] != "active":
                 continue
             due = state.parse(rec["due_at"])
@@ -61,10 +78,11 @@ def run(now: datetime | None = None) -> list[dict]:
                 notifications.append({"issue": issue, "body":
                     messages.reminder(who, pid, rec, pool, issue, n)})
 
-        # An expiry can empty a thread: nothing is active, so nothing here needs the
-        # participant any more (#24). Same rule issue_ops applies after a command —
-        # `submitted` papers are with the organizers, not the participant.
-        if expired_any and not any(r["state"] == "active" for r in claim["papers"].values()):
+        # An expiry can empty a thread: nothing left here needs the participant (#24).
+        # Same predicate issue_ops applies after a command — `submitted` papers are with
+        # the organizers, and a `pending` one is still waiting on their /confirm.
+        if expired_any and not any(r["state"] in state.NEEDS_PARTICIPANT
+                                   for r in claim["papers"].values()):
             to_close.add(issue)
 
     # Flag the last notification of each closing thread: the workflow posts it and

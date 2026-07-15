@@ -1,6 +1,7 @@
 name: Journal Club — issue ops
 
-# Processes claim forms and /claim /withdraw /submit /extend comments.
+# Processes claim forms and /claim /withdraw /extend /confirm comments, plus the
+# organizer-only /received and /reject. Who may run what is issue_ops.COMMAND_ACL.
 # Follows the repo's mutate-and-push pattern (cf. the website calendar.yml):
 # run Python -> commit the updated state -> push back, with a rebase retry loop
 # so two issues processed at once never clobber each other.

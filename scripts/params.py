@@ -14,15 +14,23 @@ DEADLINE_DAYS = 12          # days from claim to due date
 EXTENSION_DAYS = 7          # one-time extension length
 REMIND_BEFORE_DAYS = (3, 1)  # nudge when due is this many days away (day 9, day 11)
 
+# Days after an upload is received to nudge a participant who hasn't confirmed it yet.
+# There is no auto-expiry for a pending paper: the deadline clock stops at `pending`
+# (sweep only expires `active`), and the file already exists — binning someone's
+# finished work for missing a notification would be the worst outcome in the system.
+# The incentive is aligned anyway: confirming is what earns the points and frees the
+# slot. A genuinely abandoned upload is an organizer's `/reject`, not a timer's.
+CONFIRM_NUDGE_DAYS = (3, 7)
+
 # --- Submission intake (submission-form.md) --------------------------------
 SITE_URL = "https://indos-costaction.github.io/journal-club/"
 
-# The LimeSurvey "Submit a review" survey. Empty until it is built and published.
-# While empty, messages.py renders an honest "form coming" line instead of a dead
-# link, so this file staying unset is a safe state, not a broken one. Setting it is
-# the single commit that makes per-paper upload links go live everywhere at once.
-# Build spec + runbook: ../../submission-form.md
-SUBMISSION_FORM_URL = ""  # e.g. "https://limesurvey.hes-so.ch/index.php/123456"
+# The LimeSurvey "Submit a review" survey. messages.upload_url() appends the join key
+# (issue/paper/gh) as query params, so it correctly extends the existing `?lang=en`.
+# `lang=en` is deliberate: the instance's default UI language is French.
+# Empty is a safe state, not a broken one — messages.py renders an honest "form coming"
+# line rather than a dead link. Build spec + runbook: ../../submission-form.md
+SUBMISSION_FORM_URL = "https://limesurvey.hes-so.ch/index.php/428628?lang=en"
 
 # --- Grading rubric (grading-rubric.md) ------------------------------------
 # Five axes, each scored 0-5, combined with these weights (sum == 1.0).

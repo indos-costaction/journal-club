@@ -34,9 +34,15 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
 `status.json`. It has **no GitHub knowledge** — the three workflow entrypoints call into it:
 
 - `issue_ops.py` — parses one GitHub `issues` (claim form) or `issue_comment` (`/claim` `/withdraw`
-  `/submit` `/extend`) event, validates + applies against freshly-loaded state, writes the updated
-  claim file + `status.json`, plus `comment.md` / `actions.json` for the workflow to act on. Unit-testable
-  with a plain dict (`handle_event`). Enforces the identity barrier (only thread owner or an organizer acts).
+  `/extend` `/confirm`, plus organizer-only `/received` `/reject`) event, validates + applies against
+  freshly-loaded state, writes the updated claim file + `status.json`, plus `comment.md` /
+  `actions.json` for the workflow to act on. Unit-testable with a plain dict (`handle_event`).
+  Enforces the identity barrier in two tiers: a coarse gate (thread owner or organizer) and then
+  `COMMAND_ACL` per command.
+- `intake.py` — organizer-side, run **locally** (a comment from a GHA is `github-actions[bot]`, which
+  `issue-ops.yml` ignores by design). `ingest` unpacks a LimeSurvey file archive into the private
+  inbox under canonical `claim_id` filenames; `reconcile` reports; `post` comments `/received`.
+  It **posts intent and never writes `claims/`** — one writer, or issue-ops would double-apply.
 - `sweep.py` — daily: expire overdue claims (auto-withdraw, no penalty), fire day-9/day-11 reminders,
   refresh `status.json` + `ranking.json`. Reads **absolute timestamps**, so a skipped day self-heals.
   Per-paper `reminded` markers guarantee each nudge fires once.
@@ -57,19 +63,40 @@ three JSONs. `.github/ISSUE_TEMPLATE/claim.yml` is the claim form (paper IDs + a
 
 ## Claim state semantics (in `state.py`)
 
-- `IN_FLIGHT = {active, submitted}` — occupies a slot, counts against the 3-claim cap and toward a paper's live-claim count.
+    active --/received (organizer)--> pending --/confirm (author)--> submitted --> completed
+
+- `IN_FLIGHT = {active, pending, submitted}` — occupies a slot, counts against the 3-claim cap and toward a paper's live-claim count.
 - `DONE = {completed}` — a floor-passing review; counts toward the completion threshold.
-- `FREED = {withdrawn, recalled, expired, returned}` — slot released, contributes nothing. (`recalled` is legacy pre-rename data.)
+- `FREED = {withdrawn, recalled, expired, returned, rejected}` — slot released, contributes nothing. (`recalled` is legacy pre-rename data; `rejected` is an organizer removing a review for a rules violation.)
+- `NEEDS_PARTICIPANT = {active, pending}` — the auto-close predicate in `issue_ops.py` and `sweep.py`. A thread closes when nothing on it needs the participant; `pending` is waiting on their `/confirm`, so closing it would strand the handshake.
+
+**Why `pending` exists.** The LimeSurvey upload form is open-access and its per-paper link is
+published in a public issue, so an upload proves only that *someone* had the link — it cannot assert
+authorship. GitHub identity is the anchor: the claimant's `/confirm` is what makes a file a review,
+and it is the only place the no-AI declaration acquires an authenticated signatory. Two consequences
+that are load-bearing rather than incidental:
+
+- **`pending` cannot expire** — `sweep.py` only expires `active`, so receiving an upload stops the
+  deadline clock. Someone who uploads on day 11 must not be expired on day 12 waiting on us.
+- **`/confirm` is the one command an organizer cannot proxy** (`issue_ops.COMMAND_ACL`). Everything
+  else on any thread is organizer-drivable; that exception is the whole point of the handshake.
 
 Paper status is derived: `done` at `COMPLETION_THRESHOLD` completed reviews, else `closed` at
 `POOL_CLOSE_THRESHOLD` live claimants, else `open`.
 
+`rank.py` counts a ledger entry only while its claim is still `completed` — the board follows the
+claim, not the ledger alone. Without that, `/reject`ing an already-graded review would remove it
+everywhere except the leaderboard.
+
 ## Working on this codebase
 
 - **Python 3.10, standard library only** — no third-party deps, no `requirements.txt`, no build step.
-- **There is no test suite.** `state.py` / `issue_ops.py` are written to be unit-testable (pure functions,
-  `handle_event(event: dict)`); if you add tests, mirror that seam and pass in `now` explicitly (all
-  time-dependent functions take a `now` argument for determinism).
+- **Tests:** `python -m unittest discover -s tests` from the repo root. `tests/test_flow.py` covers the
+  lifecycle boundaries — the per-command ACL, the auto-close predicate, that `pending` stops the clock,
+  and that a rejected review leaves the leaderboard. Each test builds a throwaway repo in a temp dir and
+  repoints `state`'s module-level paths at it; **do not skip that** — `state.py` resolves its paths from
+  `__file__`, so a test that forgets rewrites the live `claims/`.
+- Time-dependent functions all take an explicit `now` for determinism. Keep it that way.
 - Run any entrypoint locally against the checked-in state: `python scripts/sweep.py`,
   `python scripts/rank.py`, `python scripts/grade.py --issue N --paper ID --engagement .. --grader you`.
   Scripts resolve paths relative to `scripts/`, so run from anywhere in the tree.

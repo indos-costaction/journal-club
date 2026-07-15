@@ -49,7 +49,9 @@ body:
       value: |
         After you submit, a bot replies here with your papers, their deadlines, and an
         **upload link for each one** — that link is how you hand in your review, so keep
-        this thread. Uploading is all there is to it; there is no command to send.
+        this thread. Once your file lands we'll say so here and @-mention you; you reply
+        `/confirm <ID>` to sign it off, and it goes to grading. That reply is yours alone
+        to send — it's what puts your name on the review and on the no-AI declaration.
 
         Changed your mind? Comment `/withdraw <ID>` (no penalty), `/extend <ID>` for a
         one-time +7 days, or `/claim <ID>` to take another.

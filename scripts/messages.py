@@ -84,6 +84,19 @@ def _paper_ref(pool: dict, pid: str) -> str:
     return f"{head}<br>_{_cell(title)}_"
 
 
+def _title_suffix(pool: dict, pid: str) -> str:
+    """An inline ", Author et al. (year)" for running prose.
+
+    _paper_ref() is built for a table cell — it embeds a <br> — so it shears a sentence
+    in half if reused inline.
+    """
+    p = pool.get(pid) or {}
+    who, yr = p.get("first_author"), p.get("year")
+    if not who:
+        return ""
+    return f" ({_cell(str(who))} et al." + (f", {yr})" if yr else ")")
+
+
 def _doi_cell(pool: dict, pid: str) -> str:
     url = (pool.get(pid) or {}).get("url")
     return f"[DOI ↗]({url})" if url else "—"
@@ -104,7 +117,13 @@ def holdings_table(claim: dict, pool: dict) -> str:
             continue
         if rec["state"] == "submitted":
             rows.append(f"| {_paper_ref(pool, pid)} | {_doi_cell(pool, pid)} | — "
-                        f"| ✅ received — with us for grading |")
+                        f"| ✅ confirmed — with us for grading |")
+            continue
+        if rec["state"] == "pending":
+            # No due date: the clock stopped when we received the file. Saying "—" and
+            # naming the one action left is the whole message for this row.
+            rows.append(f"| {_paper_ref(pool, pid)} | {_doi_cell(pool, pid)} | _clock stopped_ "
+                        f"| ⏳ **`/confirm {pid}`** to sign it off |")
             continue
         due = rec["due_at"][:10]
         due_cell = f"**{due}**" + (" · _extended_" if rec.get("extended") else "")
@@ -112,7 +131,7 @@ def holdings_table(claim: dict, pool: dict) -> str:
                     f"| {_upload_cell(issue, pid, who)} |")
     if not rows:
         return ""
-    return ("| Paper | Get the PDF | Due | Upload when done |\n|---|---|---|---|\n"
+    return ("| Paper | Get the PDF | Due | Next step |\n|---|---|---|---|\n"
             + "\n".join(rows))
 
 
@@ -133,13 +152,22 @@ def _cap_line(claim: dict, claims: dict) -> str:
     # lazy continuation of the last row
     if n < cap:
         return f"\n\nThat's **{n} of {cap}** active{note} — room for {cap - n} more."
-    # A submitted paper still holds its slot until it's graded (state.IN_FLIGHT), so
-    # "withdraw one" is impossible advice for someone who has submitted everything.
-    waiting = sum(1 for c in claims.values() if c["participant"] == who
-                  for r in c["papers"].values() if r["state"] == "submitted")
-    tail = ("" if not waiting else
-            f" ({waiting} of them {'is' if waiting == 1 else 'are'} with us for grading — "
-            f"{'that slot frees' if waiting == 1 else 'those slots free'} up once scored)")
+    # A submitted or pending paper still holds its slot (state.IN_FLIGHT), so "withdraw
+    # one" is impossible advice for someone whose papers are all already with us.
+    def _count(st):
+        return sum(1 for c in claims.values() if c["participant"] == who
+                   for r in c["papers"].values() if r["state"] == st)
+
+    waiting, unconfirmed = _count("submitted"), _count("pending")
+    bits = []
+    if unconfirmed:
+        # Actionable, so it leads: confirming is the one thing they can do right now.
+        bits.append(f"{unconfirmed} {'is' if unconfirmed == 1 else 'are'} waiting on your "
+                    f"`/confirm`")
+    if waiting:
+        bits.append(f"{waiting} {'is' if waiting == 1 else 'are'} with us for grading — "
+                    f"{'that slot frees' if waiting == 1 else 'those slots free'} up once scored")
+    tail = f" ({_prose_list(bits)})" if bits else ""
     return (f"\n\nThat's **{n} of {cap}** active{note} — you'll need to finish or withdraw one "
             f"before claiming another{tail}.")
 
@@ -166,9 +194,14 @@ def _next_steps() -> str:
    what's been contested or superseded, and what matters for INDoS. {_NO_AI}
    → [How to read a paper]({params.SITE_URL}reading.html)
 3. **Upload it** with that paper's Upload link above. It already knows which paper is yours.
+4. **Sign it off here.** Once we have your file we'll @-mention you on this thread; reply
+   `/confirm <ID>` and it goes to grading.
 
-**That's the whole thing.** No command to remember — we confirm here once your file lands, then
-grade it against the [rubric]({params.SITE_URL}participate.html#how-to-review-a-paper)."""
+**Why the sign-off?** The upload form is a public link, so on its own it can't prove *who*
+sent a file. Your `/confirm` here is what puts your name on the review — and on the no-AI
+declaration. It's one comment, and we ask for it; you don't have to remember it.
+
+Then we grade it against the [rubric]({params.SITE_URL}participate.html#how-to-review-a-paper)."""
 
 
 def _prose_list(items: list[str]) -> str:
@@ -202,7 +235,7 @@ def claim_confirmation(claim: dict, pool: dict, outcome, claims: dict) -> str:
 
 
 def command_ack(claim: dict, pool: dict, outcome, claims: dict) -> str:
-    """Reply to a /claim /withdraw /submit /extend comment: delta + where you stand."""
+    """Reply to any command comment: delta + where you stand."""
     who = claim["participant"]
     parts = [f"@{who} —", outcome.delta()]
     table = holdings_table(claim, pool)
@@ -240,6 +273,63 @@ def not_your_thread(actor: str, author: str) -> str:
             f"commands here.")
 
 
+def not_allowed(actor: str, cmd: str, author: str) -> str:
+    """Tier-2 ACL refusal — rendered as a rejected line, not a whole comment."""
+    if cmd == "confirm":
+        # The one refusal that is a feature. Say why, so it doesn't read as a bug:
+        # an organizer confirming on someone's behalf would defeat the handshake.
+        return (f"`/confirm` — only @{author} can confirm their own review. Not even "
+                f"organizers can do this on someone's behalf; that's the point of it.")
+    return f"`/{cmd}` — organizers only."
+
+
+def confirm_request(claim: dict, pool: dict, pid: str) -> str:
+    """Posted when an upload lands: the sign-off we need before it counts.
+
+    This is where the no-AI declaration acquires an authenticated author, so it has to
+    restate what is being attested — a `/confirm` that doesn't say what it means would
+    be a rubber stamp, and we'd have gained nothing over the anonymous form.
+    """
+    who = claim["participant"]
+    return (f"📄 @{who} — we've got your annotated PDF for **{pid}**{_title_suffix(pool, pid)}. "
+            f"One last thing before it goes to grading.\n\n"
+            f"Reply **`/confirm {pid}`** on this thread to confirm that:\n\n"
+            f"- this upload is yours, and\n"
+            f"- you read and annotated the paper **yourself, without AI assistance**.\n\n"
+            f"That's your signature on the review — the upload link is public, so your "
+            f"reply here is what puts your name on it. Nothing else is needed.\n\n"
+            f"Didn't upload this? **Don't confirm it** — just say so here and we'll drop it. "
+            f"Uploaded the wrong file? Upload the right one and we'll ask again.\n\n"
+            f"_Your deadline is on hold until you confirm — no rush, nothing is at risk._")
+
+
+def reject_notice(who: str, pids: list[str]) -> str:
+    """Posted when an organizer removes a review.
+
+    This is a public comment naming a real person. It states the mechanical outcome and
+    **alleges nothing** — the reason is the organizers' to give, in their own words and
+    preferably in private. A bot must never be the thing that accuses someone.
+    """
+    lst = _prose_list([f"`{p}`" for p in pids])
+    n = len(pids)
+    return (f"@{who} — {lst} {'has' if n == 1 else 'have'} been withdrawn by the organizers "
+            f"and {'no longer counts' if n == 1 else 'no longer count'} toward the "
+            f"leaderboard. {'The paper is' if n == 1 else 'The papers are'} back in the pool "
+            f"and your {'slot is' if n == 1 else 'slots are'} free.\n\n"
+            f"The organizers will follow up with the reason. If you think this is a mistake, "
+            f"reply here or contact them directly — it can be reversed.")
+
+
+def confirm_nudge(who: str, pid: str, pool: dict, days: int) -> str:
+    return (f"👋 @{who} your annotated PDF for `{pid}` has been sitting with us for "
+            f"~{days} day(s), waiting on your sign-off. Reply **`/confirm {pid}`** and it "
+            f"goes to grading.\n\n"
+            f"Nothing is at risk — there's no deadline on this and the work is safe. But it "
+            f"won't be graded, and it holds one of your {params.ACTIVE_CLAIM_CAP} slots, "
+            f"until you do.\n\n"
+            f"Didn't upload it? Say so here rather than confirming it.")
+
+
 def consent_missing() -> str:
     return ("❌ We can't record a claim without the consent checkbox ticked. Please edit the "
             "issue and confirm consent (see [`CONSENT.md`](https://github.com/"
@@ -256,11 +346,21 @@ def close_notice(author: str, held: list[str]) -> str:
             f"a paper, comment `/withdraw <ID>`. Reopen this issue to keep working.")
 
 
-def thread_done() -> str:
-    """Posted with the auto-close when nothing on the thread needs the participant."""
-    return ("Nothing on this thread needs your action — closing it. Any papers you've submitted "
-            "are with the organizers for grading, and your points will appear on the leaderboard "
-            "once they're scored. Open a new claim whenever you like.")
+def thread_done(claim: dict) -> str:
+    """Posted with the auto-close when nothing on the thread needs the participant.
+
+    Takes the claim because the honest ending depends on how the thread emptied: a
+    withdrawal, an expiry or an organizer's removal leaves nothing to be scored, and
+    promising that "your points will appear once graded" would be a small lie at a bad
+    moment.
+    """
+    if any(r["state"] == "submitted" for r in claim["papers"].values()):
+        return ("Nothing on this thread needs your action — closing it. Your confirmed reviews "
+                "are with the organizers for grading, and your points will appear on the "
+                f"leaderboard once they're scored. Open a new claim whenever you like → "
+                f"{params.SITE_URL}#papers")
+    return ("Nothing on this thread needs your action — closing it. Nothing is held against "
+            f"you, and you're welcome to claim again whenever suits you → {params.SITE_URL}#papers")
 
 
 def thread_done_after_expiry() -> str:

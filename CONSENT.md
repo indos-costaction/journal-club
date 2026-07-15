@@ -8,10 +8,13 @@ accompanies sign-up; ticking the consent box on the claim form confirms you have
 
 ## What we collect
 
-- Your **GitHub handle** and the papers you claim/return/submit (public, in this repo's `claims/`).
+- Your **GitHub handle** and the papers you claim, return, upload, and confirm — with the timestamps
+  of those actions (public, in this repo's `claims/`). Your `/confirm` comment is a public GitHub
+  comment on your own claim thread, and it is what records **you** as the author of the review and of
+  its no-AI declaration.
 - Your **annotated PDFs**, uploaded through our submission form to the **HES-SO institutional
   LimeSurvey** (`limesurvey.hes-so.ch` — EU/CH data residency), visible only to the organizers and you.
-  Each upload also records which paper and claim it belongs to, and your no-AI declaration.
+  Each upload also records which paper and claim it belongs to, and a no-AI answer on the form itself.
 - Your **attribution choice** for the public board (from the claim form).
 - The **rubric scores** organizers assign your reviews (public handle + numbers only — no PDF, no email).
 
