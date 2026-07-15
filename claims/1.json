@@ -8,7 +8,7 @@
   },
   "papers": {
     "FMRI-01": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-07-02T17:36:32Z",
       "due_at": "2026-07-14T17:36:32Z",
       "extended": false,

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-14T07:58:24Z",
+  "generated_at": "2026-07-15T08:03:31Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -474,7 +474,7 @@
     "FMRI-R1": {
       "modality": "fMRI",
       "level": 0,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
@@ -490,7 +490,7 @@
     "FMRI-01": {
       "modality": "fMRI",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
@@ -1794,7 +1794,7 @@
     "CROSS-09": {
       "modality": "Cross-modality",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3

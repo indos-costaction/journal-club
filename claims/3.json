@@ -8,7 +8,7 @@
   },
   "papers": {
     "CROSS-09": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-07-02T18:22:07Z",
       "due_at": "2026-07-14T18:22:07Z",
       "extended": false,
