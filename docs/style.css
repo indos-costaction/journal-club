@@ -415,6 +415,54 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .k-review { background: var(--m-review); }
 .k-done { background: var(--m-done); }
 .mosaic-hint { color: rgba(255, 255, 255, 0.55); font-size: 0.8rem; }
+
+/* Hover card — a light surface lifted off the navy, so it reads as a card on the
+   page rather than an OS tooltip. position:fixed, so no ancestor can clip it. */
+.mosaic-tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 150;
+  width: max-content;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  color: var(--fg);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  pointer-events: none;          /* never eat the click meant for the tile */
+  visibility: hidden;            /* not display:none — it must stay measurable */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.mosaic-tip.show { visibility: visible; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .mosaic-tip { transition: none; } }
+
+/* The `* { margin: 0 }` reset already zeroes these, and no p rule reaches inside
+   the card — so each part sets only the margin it needs, no override war. */
+.tip-title { font-weight: 600; color: var(--logo-blue); text-wrap: balance; }
+.tip-meta { color: var(--muted); font-size: 0.8rem; margin-top: 0.15rem; }
+.tip-stats {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem;
+  margin-top: 0.45rem;
+  font-variant-numeric: tabular-nums;
+}
+.tip-stats .key { margin-right: 0.1rem; }
+.tip-sep { color: var(--line); }
+.tip-cta {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Touch devices have no hover; the card would only ever flash on tap. */
+@media (hover: none) { .mosaic-tip { display: none; } }
 .mosaic-count { color: var(--logo-turquoise); font-variant-numeric: tabular-nums; }
 
 /* Bands */
@@ -449,6 +497,11 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;
 }
 .papers-head h2 { margin-bottom: 0; }
+
+/* Seven columns don't fit a phone: the table scrolls inside its own box rather
+   than dragging the whole page sideways. */
+.table-scroll { overflow-x: auto; }
+.table-scroll table { min-width: 640px; }
 
 /* Responsive */
 @media (max-width: 768px) {
