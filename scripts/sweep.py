@@ -6,8 +6,9 @@ Idempotent: it reads absolute timestamps, not "what changed since yesterday", so
 skipped day self-heals on the next run. Per-paper ``reminded`` markers guarantee
 each nudge fires once.
 
-Writes ``notifications.json`` (git-ignored) — a list of {issue, body} the workflow
-posts as issue comments (GitHub then emails the @-mentioned assignee). No SMTP.
+Writes ``notifications.json`` (git-ignored) — a list of {issue, body, close?} the
+workflow posts as issue comments (GitHub then emails the @-mentioned assignee); an
+entry carrying ``close: true`` also closes its thread. No SMTP.
 """
 from __future__ import annotations
 
@@ -30,9 +31,11 @@ def run(now: datetime | None = None) -> list[dict]:
     claims = state.load_claims()
     notifications: list[dict] = []
     touched: set[int] = set()
+    to_close: set[int] = set()
 
     for issue, claim in claims.items():
         who = claim["participant"]
+        expired_any = False
         for pid, rec in claim["papers"].items():
             if rec["state"] != "active":
                 continue
@@ -41,6 +44,7 @@ def run(now: datetime | None = None) -> list[dict]:
 
             if remaining <= 0:  # expire = auto-withdraw, no penalty, zero points
                 rec["state"] = "expired"
+                expired_any = True
                 touched.add(issue)
                 notifications.append({"issue": issue, "body":
                     f"⌛ @{who} your claim on `{pid}` reached its deadline "
@@ -59,6 +63,21 @@ def run(now: datetime | None = None) -> list[dict]:
                     f"(**{rec['due_at'][:10]}**). Not going to make it? Reply "
                     f"`/extend {pid}` for a one-time +{params.EXTENSION_DAYS} days, "
                     f"or `/withdraw {pid}` to return it — no penalty."})
+
+        # An expiry can empty a thread: nothing is active, so nothing here needs the
+        # participant any more (#24). Same rule issue_ops applies after a command —
+        # `submitted` papers are with the organizers, not the participant.
+        if expired_any and not any(r["state"] == "active" for r in claim["papers"].values()):
+            to_close.add(issue)
+
+    # Flag the last notification of each closing thread: the workflow posts it and
+    # then closes, so the expiry message stays the reason shown on the timeline.
+    for note in reversed(notifications):
+        if note["issue"] in to_close:
+            note["close"] = True
+            note["body"] += ("\n\nNothing else on this thread needs your action — "
+                             "closing it. Open a new claim whenever you like.")
+            to_close.discard(note["issue"])
 
     for issue in touched:
         state.save_claim(claims[issue])
