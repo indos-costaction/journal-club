@@ -1,0 +1,19 @@
+{
+  "issue": 31,
+  "participant": "oesteban",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-07-15T22:25:22Z"
+  },
+  "papers": {
+    "PET-14": {
+      "state": "active",
+      "claimed_at": "2026-07-15T22:25:22Z",
+      "due_at": "2026-07-27T22:25:22Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
