@@ -53,6 +53,42 @@ async function load() {
   renderBoard();
   const t = status.generated_at ? `Updated ${status.generated_at.slice(0, 10)}.` : "";
   $("#stamp").textContent = t;
+  renderMosaic();
+  scrollToPapersIfDeepLinked();
+}
+
+// Hero mosaic: one tile per paper, in pool.json order (which is clustered by modality).
+// Same three states as the pool table, in the navy-legible --m-* shades.
+function renderMosaic() {
+  const box = $("#mosaic"); if (!box) return;
+  const frag = document.createDocumentFragment();
+  const tally = { open: 0, closed: 0, done: 0 };
+  for (const p of POOL) {
+    const s = STATUS.papers?.[p.id]?.status || "open";
+    tally[s] = (tally[s] || 0) + 1;
+    frag.append(el("i", { className: "s-" + s, title: `${p.id} · ${p.modality} · ${s}` }));
+  }
+  box.replaceChildren(frag);
+  box.setAttribute("aria-label",
+    `Paper pool: ${tally.open} open, ${tally.closed} in review, ${tally.done} complete, of ${POOL.length}.`);
+  const t = STATUS.totals;
+  if (t) $("#mosaicCount").textContent =
+    `${t.reviews_completed} of ${t.papers * STATUS.params.completion_threshold} reviews in`;
+}
+
+// The pool now sits below the fold behind a landing hero, so old deep links
+// (?modality=EEG, ?status=…, ?need=1) and #pool/#board hashes have to land the
+// visitor on the table rather than the hero. "instant" bypasses the CSS smooth
+// scroll — a deep link should arrive, not animate.
+function scrollToPapersIfDeepLinked() {
+  const p = new URLSearchParams(location.search);
+  const hasFilter = p.has("modality") || p.has("status") || p.has("need");
+  if (location.hash === "#board")
+    document.querySelector('.tabs button[data-tab="board"]')?.click();
+  if (!hasFilter && location.hash !== "#pool" && location.hash !== "#board") return;
+  // Chrome would otherwise restore the pre-reload scroll position on top of this.
+  history.scrollRestoration = "manual";
+  document.getElementById("papers")?.scrollIntoView({ behavior: "instant", block: "start" });
 }
 
 function initModalities() {

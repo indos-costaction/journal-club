@@ -8,18 +8,24 @@
 </head>
 <body>
 <header class="site-header">
-  <nav class="navbar">
-    <a class="navbar-brand" href="https://www.indos-costaction.eu/">
+  <!-- BEGIN shared nav — keep byte-identical across index/participate/reading (only aria-current varies) -->
+  <nav class="navbar" aria-label="Site">
+    <a class="navbar-brand" href="./">
       <img src="assets/images/logo/indos-logo.png" alt="INDoS COST Action" height="40">
+      <span class="brand-name">Journal Club</span>
     </a>
     <ul class="nav-list">
-      <li><a href="https://www.indos-costaction.eu/">INDoS Home</a></li>
-      <li><a href="https://www.indos-costaction.eu/wg3">WG3</a></li>
+      <li><a href="./">Home</a></li>
+      <li><a href="./#papers">Pool &amp; Board</a></li>
       <li><a href="./participate.html">How to participate</a></li>
-      <li><a class="active" href="./reading.html">How to read a paper</a></li>
-      <li><a href="./">Board</a></li>
+      <li><a aria-current="page" href="./reading.html">How to read a paper</a></li>
+      <li class="nav-ext-group">
+        <a class="nav-ext" href="https://www.indos-costaction.eu/wg3">WG3&nbsp;↗</a>
+        <a class="nav-ext" href="https://www.indos-costaction.eu/">INDoS&nbsp;↗</a>
+      </li>
     </ul>
   </nav>
+  <!-- END shared nav -->
 </header>
 
 <main class="main-content">

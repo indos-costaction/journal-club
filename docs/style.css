@@ -24,6 +24,13 @@
   --open: #2f855a;
   --closed: #b7791f;
   --done: var(--logo-purple);
+
+  /* The same three states, on the hero's navy ground. The badge colours above are
+     tuned for the light band and go muddy on --logo-blue, so each state gets a
+     navy-legible sibling — one mental code across hero mosaic and pool table. */
+  --m-open: #4FB07A;                /* lightened --open   */
+  --m-closed: var(--logo-orange);   /* ≈ --closed, on-brand */
+  --m-done: var(--logo-lavender);   /* ≈ --done, on-brand   */
 }
 
 /* Reset & base */
@@ -63,30 +70,43 @@ body {
   gap: 1rem;
 }
 
-.navbar-brand { display: inline-flex; align-items: center; }
+.navbar-brand { display: inline-flex; align-items: center; gap: 0.6rem; text-decoration: none; }
 .navbar-brand img { height: 40px; display: block; }
+.brand-name {
+  color: var(--logo-blue);
+  font-weight: 700;
+  font-size: 1.05rem;
+  border-left: 1px solid var(--line);
+  padding-left: 0.6rem;
+}
 
 .nav-list {
   display: flex;
   list-style: none;
-  gap: 2rem;
+  gap: 0.35rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
+/* Pills, not bare text — the nav has to look clickable at a glance (issue #17). */
 .nav-list a {
   text-decoration: none;
   color: #555;
   font-weight: 500;
-  transition: color 0.3s ease;
-  padding: 0.5rem 0;
-  border-bottom: 2px solid transparent;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  display: inline-block;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.nav-list a:hover,
-.nav-list a.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
+.nav-list a:hover { background: var(--card); color: var(--logo-blue); }
+
+.nav-list a[aria-current="page"] { background: var(--logo-blue); color: #fff; }
+
+/* Off-site links are demoted so the club's own pages read as the primary set. */
+.nav-ext-group { display: inline-flex; gap: 0.35rem; margin-left: 0.5rem;
+  padding-left: 0.6rem; border-left: 1px solid var(--line); }
+.nav-list .nav-ext { color: var(--muted); font-weight: 400; font-size: 0.9rem; }
 
 /* Main content band */
 .main-content {
@@ -306,9 +326,125 @@ code { background: var(--card); padding: 1px 5px; border-radius: 4px; font-size:
 .refs li a { word-break: break-word; }
 .refs-note { font-size: 0.85rem; color: var(--muted); }
 
+/* ---------------------------------------------------------------------------
+   Landing page (index.html) — hero, bands, mosaic. The INDoS brand has no hero
+   or button component upstream, so these are net-new, built from the tokens.
+--------------------------------------------------------------------------- */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* Anchor targets must clear the sticky header. */
+#about, #how-it-works, #papers { scroll-margin-top: 88px; }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--logo-turquoise);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute; left: -999px; top: 0; z-index: 200;
+  background: var(--logo-blue); color: #fff; padding: 0.6rem 1rem;
+}
+.skip-link:focus { left: 8px; top: 8px; }
+
+/* Buttons */
+.btn {
+  display: inline-block; padding: 0.7rem 1.5rem; border-radius: 8px;
+  font-weight: 600; text-decoration: none; transition: background 0.2s ease;
+}
+.btn-primary { background: var(--logo-orange); color: var(--logo-blue); }
+.btn-primary:hover { background: #e8a23a; }
+.btn-ghost { border: 2px solid rgba(255, 255, 255, 0.75); color: #fff; }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* Hero — flat brand navy, no gradient. */
+.hero { background: var(--logo-blue); color: #fff; text-align: center; padding: 4rem 0 2.5rem; }
+.hero-kicker {
+  color: var(--logo-orange); text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: 0.8rem; font-weight: 600; margin-bottom: 0.75rem;
+}
+.hero h1 {
+  font-size: clamp(2.2rem, 5vw, 3.2rem); color: #fff;
+  margin-bottom: 0.6rem; text-wrap: balance;
+}
+.hero-tagline {
+  max-width: 44ch; margin: 0 auto 1.75rem; font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.9); text-wrap: balance;
+}
+.hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 1.75rem; }
+.hero-scroll { display: inline-block; margin-top: 1.5rem; color: rgba(255, 255, 255, 0.7); }
+.hero-scroll:hover { color: #fff; }
+@media (prefers-reduced-motion: no-preference) {
+  .hero-scroll { animation: heroBob 2s ease-in-out infinite; }
+  @keyframes heroBob { 50% { transform: translateY(6px); } }
+}
+
+/* The mosaic — one tile per paper. It is the progress display: the pool fills
+   in over the summer as tiles turn orange, then lavender. */
+.mosaic { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; max-width: 640px; margin: 0 auto; }
+.mosaic i { width: 11px; height: 11px; border-radius: 2px; background: var(--m-open); }
+.mosaic i.s-closed { background: var(--m-closed); }
+.mosaic i.s-done { background: var(--m-done); }
+
+.mosaic-legend {
+  margin: 1rem auto 0; font-size: 0.85rem; color: rgba(255, 255, 255, 0.75);
+  display: flex; gap: 0.5rem 1.1rem; justify-content: center; flex-wrap: wrap; align-items: center;
+}
+.key {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin-right: 0.35rem; vertical-align: -1px;
+}
+.k-open { background: var(--m-open); }
+.k-closed { background: var(--m-closed); }
+.k-done { background: var(--m-done); }
+.mosaic-count { color: var(--logo-turquoise); font-variant-numeric: tabular-nums; }
+
+/* Bands */
+.band { padding: 3.25rem 0; background: var(--surface); }
+.band-tint { background: var(--bg); }
+.band-tint h2, #papers h2 { font-size: 1.6rem; color: var(--logo-blue); margin-bottom: 1rem; }
+
+/* How it works — numbered because it genuinely is a sequence. */
+.steps {
+  list-style: none; margin: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;
+  counter-reset: step;
+}
+.steps li {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 1.1rem 1.25rem; margin: 0; counter-increment: step;
+}
+.steps li::before {
+  content: counter(step);
+  display: inline-grid; place-items: center;
+  width: 1.8rem; height: 1.8rem; border-radius: 50%;
+  background: var(--logo-turquoise); color: #fff; font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.steps h3 { color: var(--logo-purple); font-size: 1.05rem; margin-bottom: 0.3rem; }
+.steps p { margin: 0; font-size: 0.95rem; }
+.steps a { color: var(--accent); text-decoration: none; }
+.steps a:hover { text-decoration: underline; }
+
+.papers-head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 1rem; margin-bottom: 0.75rem;
+}
+.papers-head h2 { margin-bottom: 0; }
+
 /* Responsive */
 @media (max-width: 768px) {
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .nav-list { flex-direction: column; gap: 0.5rem; width: 100%; align-items: flex-start; }
+  /* A stacked one-per-line nav plus a sticky header would eat most of a phone
+     screen, so the pills wrap into rows and the header scrolls away instead. */
+  .site-header { position: static; padding: 0.75rem 0; }
+  .navbar { flex-direction: column; align-items: center; gap: 0.6rem; }
+  .nav-list { flex-wrap: wrap; justify-content: center; gap: 0.3rem; width: 100%; }
+  .nav-list a { padding: 0.35rem 0.7rem; font-size: 0.9rem; }
+  .nav-ext-group { margin-left: 0; padding-left: 0; border-left: none; }
+  #about, #how-it-works, #papers { scroll-margin-top: 8px; }
   .footer-content td { display: block; text-align: center !important; }
+  .hero { padding: 2.5rem 0 2rem; }
+  .hero-actions .btn { width: 100%; text-align: center; }
+  .papers-head { flex-direction: column; align-items: flex-start; }
+  .mosaic i, .key { width: 9px; height: 9px; }
 }

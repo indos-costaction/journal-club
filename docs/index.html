@@ -4,40 +4,140 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Federated Journal Club — INDoS COST Action</title>
+<meta name="description" content="A summer-long community reading of the neuroimaging-preprocessing literature. 242 papers, 10 imaging modalities, open to everyone — an initiative of INDoS COST Action WG3.">
 <!-- Repo is auto-derived from the GitHub Pages URL. If this site is ever served
      from a custom domain, hard-set it here instead:
 <script>window.JC_REPO = "indos-costaction/journal-club";</script> -->
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<a class="skip-link" href="#papers">Skip to the paper pool</a>
 <header class="site-header">
-  <nav class="navbar">
-    <a class="navbar-brand" href="https://www.indos-costaction.eu/">
+  <!-- BEGIN shared nav — keep byte-identical across index/participate/reading (only aria-current varies) -->
+  <nav class="navbar" aria-label="Site">
+    <a class="navbar-brand" href="./">
       <img src="assets/images/logo/indos-logo.png" alt="INDoS COST Action" height="40">
+      <span class="brand-name">Journal Club</span>
     </a>
     <ul class="nav-list">
-      <li><a href="https://www.indos-costaction.eu/">INDoS Home</a></li>
-      <li><a href="https://www.indos-costaction.eu/wg3">WG3</a></li>
+      <li><a aria-current="page" href="./">Home</a></li>
+      <li><a href="./#papers">Pool &amp; Board</a></li>
       <li><a href="./participate.html">How to participate</a></li>
       <li><a href="./reading.html">How to read a paper</a></li>
-      <li><a class="active" href="./">Board</a></li>
+      <li class="nav-ext-group">
+        <a class="nav-ext" href="https://www.indos-costaction.eu/wg3">WG3&nbsp;↗</a>
+        <a class="nav-ext" href="https://www.indos-costaction.eu/">INDoS&nbsp;↗</a>
+      </li>
     </ul>
   </nav>
+  <!-- END shared nav -->
 </header>
 
-<main class="main-content">
-  <div class="container">
-    <div class="page-content">
-      <h1>Federated Journal Club</h1>
-      <p class="sub">WG3 · Automated Preprocessing Pipelines — a summer reading activity, open to all.
-         Pick papers, annotate them, climb the board. <a id="claimTop" href="#">Claim papers →</a></p>
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-inner">
+      <p class="hero-kicker">INDoS COST Action · WG3 — Automated Preprocessing Pipelines</p>
+      <h1 id="hero-title">Federated Journal Club</h1>
+      <p class="hero-tagline">242 papers. 10 imaging modalities. One critically-read map of the
+        preprocessing literature — built by people, not machines.</p>
+
+      <!-- One tile per paper, coloured by live status; filled in by app.js from status.json. -->
+      <div id="mosaic" class="mosaic" role="img" aria-label="Loading paper pool status…"></div>
+      <p class="mosaic-legend">
+        <span><span class="key k-open"></span>open</span>
+        <span><span class="key k-closed"></span>in review</span>
+        <span><span class="key k-done"></span>complete</span>
+        <span id="mosaicCount" class="mosaic-count"></span>
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#papers">Browse the papers</a>
+        <a class="btn btn-ghost" href="./participate.html">How to take part</a>
+      </div>
+      <a class="hero-scroll" href="#about" aria-label="Scroll down to learn more">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+  <section id="about" class="band">
+    <div class="container page-content">
+      <h2>What is this?</h2>
+      <p>The <strong>Federated Journal Club</strong> is an initiative of
+        <a href="https://www.indos-costaction.eu/">INDoS</a> (COST Action CA24161, <em>Improving
+        Neuroimaging Data for Sharing</em>) and its
+        <a href="https://www.indos-costaction.eu/wg3">Working Group 3 — Automated Preprocessing
+        Pipelines</a>. Summer is when labs quieten, supervisors travel, and trainee projects stall.
+        So we spend it reading: participants collectively read and critically annotate a curated
+        pool of <strong>242 preprocessing papers</strong> spanning nine imaging modalities plus a
+        cross-modality methods category. Between us we build a critically-read map of the field
+        that no single lab could assemble alone.</p>
+
+      <p><strong>Who runs it.</strong> The club is organised by the WG3 co-chairs
+        <strong>Oscar Esteban</strong> (HES-SO Valais-Wallis) and <strong>Guiomar Niso</strong>
+        (Cajal Institute, CSIC), with Task Force 3 lead <strong>Başak Esin Köktürk Güzel</strong>
+        (İzmir Demokrasi University). It is
+        <strong>open to everyone — any career stage, any country, INDoS membership not
+        required</strong>. We especially encourage trainees, early-career researchers, and
+        participants from <a href="https://www.indos-costaction.eu/grants">Inclusiveness Target
+        Countries</a>.</p>
+
+      <p><strong>Where it leads.</strong> Every review is scored against a transparent rubric that
+        drives the live leaderboard, and your standing is a major input to invitations to the
+        <strong>INDoS Training School</strong>, whose first block is built on the annotations
+        gathered here. The annotations themselves become an open meta-review publication, with
+        participating reviewers credited as co-authors. Reading closely for a summer turns into a
+        paper with your name on it.</p>
+
+      <p class="page-links">Full rules and eligibility →
+        <a href="./participate.html">How to participate</a> &nbsp;·&nbsp; New to reading papers
+        critically? → <a href="./reading.html">How to read a paper</a></p>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="band band-tint">
+    <div class="container">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li>
+          <h3>Claim</h3>
+          <p>Pick up to three open papers from the pool below — one GitHub issue does it.</p>
+        </li>
+        <li>
+          <h3>Read &amp; annotate</h3>
+          <p>Twelve days per paper. Typed inline PDF comments, and no AI.
+            <a href="./reading.html">How to read a paper →</a></p>
+        </li>
+        <li>
+          <h3>Submit</h3>
+          <p>Return the annotated PDF; it is scored against a transparent rubric.
+            <a href="./participate.html#how-to-review-a-paper">The rules →</a></p>
+        </li>
+        <li>
+          <h3>Climb the board</h3>
+          <p>Quality points rank you on the live leaderboard — a major input to Training School
+            invitations. <a href="./participate.html">Timing and eligibility →</a></p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="papers" class="band">
+    <div class="container">
+      <div class="papers-head">
+        <h2>Paper pool &amp; leaderboard</h2>
+        <a id="claimTop" class="btn btn-primary" href="#">Claim papers on GitHub</a>
+      </div>
 
       <div id="progress" class="progress" hidden>
         <div class="bar"><div id="progressFill"></div></div>
         <div id="progressText" class="muted"></div>
       </div>
 
-      <nav class="tabs">
+      <nav class="tabs" aria-label="Pool or leaderboard">
         <button data-tab="pool" class="active">Paper pool</button>
         <button data-tab="board">Leaderboard</button>
       </nav>
@@ -82,7 +182,7 @@
         <span id="stamp"></span>
       </p>
     </div>
-  </div>
+  </section>
 </main>
 
 <footer class="site-footer">
