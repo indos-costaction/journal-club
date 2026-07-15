@@ -1,6 +1,7 @@
 name: Journal Club — issue ops
 
-# Processes claim forms and /claim /withdraw /submit /extend comments.
+# Processes claim forms and /claim /withdraw /extend /confirm comments, plus the
+# organizer-only /received and /reject. Who may run what is issue_ops.COMMAND_ACL.
 # Follows the repo's mutate-and-push pattern (cf. the website calendar.yml):
 # run Python -> commit the updated state -> push back, with a rebase retry loop
 # so two issues processed at once never clobber each other.
@@ -74,10 +75,10 @@ jobs:
           import json, subprocess
           a = json.load(open("actions.json"))
           if a.get("close"):
-              subprocess.run(["gh", "issue", "close", str(a["issue"]), "--comment",
-                              "Nothing on this thread needs your action — closing it. "
-                              "Submitted papers are with the organizers for grading. "
-                              "Open a new claim anytime."], check=False)
+              # body comes from scripts/messages.py — participant-facing prose is never
+              # authored here, so there is one place to keep it consistent
+              subprocess.run(["gh", "issue", "close", str(a["issue"]),
+                              "--comment", a.get("close_comment", "")], check=False)
           PY
 
       - name: Commit + push state (rebase-retry loop)

@@ -3,11 +3,12 @@
 
     participant_points = Σ over floor-passing completed reviews ( weighted )
 
-Only floor-passing reviews contribute; withdrawals, expiries, and below-floor reviews
-count zero. Tie-breakers, in order: (1) number of completed reviews, (2) mean
-weighted score, (3) earliest to reach the current point total. Because the whole
-board is recomputed from the ledger every time, re-running never double-counts and
-a corrected/reverted ledger entry simply yields the corrected board.
+Only floor-passing reviews **whose claim is still `completed`** contribute; withdrawals,
+expiries, below-floor reviews and organizer-rejected ones count zero. Tie-breakers, in
+order: (1) number of completed reviews, (2) mean weighted score, (3) earliest to reach
+the current point total. Because the whole board is recomputed from ledger + claims every
+time, re-running never double-counts, and a corrected ledger entry or a rejected claim
+simply yields the corrected board.
 """
 from __future__ import annotations
 
@@ -43,6 +44,17 @@ def compute_ranking(claims: dict, ledger: list[dict], status: dict | None = None
     agg: dict[str, dict] = {}
     for e in ledger:
         if not e.get("floor_ok"):
+            continue
+        # The board follows the *claim*, not the ledger alone. A ledger entry records that
+        # a review was scored; the claim records whether it still stands. Without this, an
+        # organizer's /reject would remove a review everywhere except the one place that
+        # matters — the entry would sit here with floor_ok and keep paying out.
+        #
+        # A no-op on data written before /reject existed: grade.py sets `completed` iff
+        # floor_ok, so the two conditions were equivalent and only diverge once a review
+        # is rejected after grading.
+        rec = (claims.get(e["issue"], {}).get("papers", {}) or {}).get(e["paper_id"])
+        if not rec or rec["state"] != "completed":
             continue
         p = e["participant"]
         a = agg.setdefault(p, {"points": 0.0, "reviews": 0, "last": ""})

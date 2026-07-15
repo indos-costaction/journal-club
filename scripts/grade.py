@@ -23,8 +23,9 @@ import rank
 import state
 
 
-def claim_id(paper_id: str, participant: str, issue: int) -> str:
-    return f"{paper_id}--{participant}--{issue}"
+# The join key lives in state.py so grade.py and intake.py cannot drift apart —
+# it is both this ledger's filename and the inbox PDF's filename.
+claim_id = state.claim_id
 
 
 def grade(issue: int, paper_id: str, axes: dict, grader: str) -> dict:
@@ -36,6 +37,21 @@ def grade(issue: int, paper_id: str, axes: dict, grader: str) -> dict:
     rec = claim["papers"].get(paper_id)
     if rec is None:
         raise SystemExit(f"error: issue #{issue} has no claim on {paper_id}")
+    if rec["state"] != "submitted":
+        # Fatal, and the one guard that gives the handshake teeth. A `pending` review has
+        # an upload but no confirmed author — the form is public, so grading it would put
+        # points on the board for a review nobody has actually claimed authorship of.
+        # (`completed`/`returned` = already graded; the rest were never submitted.)
+        extra = ("  It's uploaded but not yet confirmed by the claimant — that's the one "
+                 "thing that has to happen first.\n" if rec["state"] == "pending" else "")
+        raise SystemExit(f"error: {paper_id} (issue #{issue}) is `{rec['state']}`, not "
+                         f"`submitted` — refusing to grade it.\n{extra}")
+    if not rec.get("submission_ref"):
+        # not fatal: a review may predate the LimeSurvey pathway, or have been recorded by
+        # hand. But grading something with no recorded upload is worth a second look
+        # before it lands in the public ledger.
+        print(f"warning: {paper_id} (issue #{issue}) has no submission_ref — "
+              f"grading a review with no recorded upload")
 
     weighted = params.weighted_score(axes)
     floor_ok = weighted >= params.QUALITY_FLOOR

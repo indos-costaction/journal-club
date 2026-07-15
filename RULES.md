@@ -14,18 +14,30 @@ rationale is the initiative's `mechanics.md` and `grading-rubric.md`.
 
 ## Turning a paper around
 
-- **Submit** the annotated PDF (via the private Form) and comment `/submit <ID>` before the deadline.
+- **Upload** the annotated PDF before the deadline, through that paper's **Upload link** (in the bot's
+  comment on your claim issue, and in every reminder). We check it is readable and matches your claim,
+  then post `/received <ID>` on your thread.
+- **Sign it off** (`/confirm <ID>`) on that thread. This is the one command **only you** can send —
+  organizers cannot do it for you, and that is exactly the point. The upload form is open to anyone
+  holding the link, so it cannot prove *who* sent a file; your `/confirm`, from your GitHub account,
+  is what puts your name on the review and on the **no-AI declaration**. The bot @-mentions you and
+  GitHub emails you, so there is nothing to remember — you reply.
+- **The clock stops the moment we receive your upload.** A received paper never expires, so taking
+  your time over the sign-off costs you nothing and puts nothing at risk.
 - **Withdraw** (`/withdraw <ID>`) any time before the deadline — no penalty; it returns to the pool.
 - **Extend** (`/extend <ID>`) once for **+7 days**. One extension per claim.
-- **Expiry:** at day 12 the paper auto-returns to the pool — no penalty, zero points.
-- **Partial reviews are not accepted** — withdraw rather than submit an incomplete review.
+- **Expiry:** at day 12 a paper you have not uploaded auto-returns to the pool — no penalty, zero points.
+- **Partial reviews are not accepted** — withdraw rather than hand in an incomplete review.
+- **Reviews that break the rules are removed** (`/reject <ID>`, organizers only) — including after
+  grading. The rules are the ones on this page; the one that matters most is no AI.
 
 ## What a review is
 
 The paper's **PDF with inline, typed annotations** (no handwriting/scans) marking: (a) what you
 did **not understand**; (b) what has been **contested/superseded** since publication; (c) what
 **matters for INDoS** (data-sharing, standardization, reproducibility). **No AI** may be used to
-read, summarise, or annotate. You confirm this at sign-up.
+read, summarise, or annotate. You declare this per review, by signing it off with `/confirm <ID>`
+on your claim thread — that declaration is made from your GitHub account, in your name.
 
 ## Grading — the 5-axis rubric
 
