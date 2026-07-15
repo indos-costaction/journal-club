@@ -10,11 +10,15 @@ const OFFICIAL = "indos-costaction/journal-club";
 let REPO = window.JC_REPO || OFFICIAL;   // refined from data/site.json in load()
 
 const lastName = a => (a || "").trim().split(/\s+/).pop() || "";
+// No "[claim] " prefix: the form's `claim` label marks these threads, which filters
+// and reads better than a title convention (and is what issue_ops keys off).
 function issueTitle(p) {
-  return p ? `[claim] ${lastName(p.first_author)} et al. ${p.year} - ${p.title}` : "[claim] ";
+  return p ? `${lastName(p.first_author)} et al. ${p.year} - ${p.title}` : "";
 }
 function newIssueURL(p) {
-  const q = new URLSearchParams({ template: "claim.yml", title: issueTitle(p) });
+  const q = new URLSearchParams({ template: "claim.yml" });
+  const title = issueTitle(p);
+  if (title) q.set("title", title);
   if (p) q.set("paper_ids", p.id);
   return `https://github.com/${REPO}/issues/new?${q}`;
 }

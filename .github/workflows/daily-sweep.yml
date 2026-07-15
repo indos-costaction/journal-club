@@ -33,7 +33,7 @@ jobs:
       - name: Run the sweep
         run: python scripts/sweep.py
 
-      - name: Post reminder / expiry comments
+      - name: Post reminder / expiry comments, close emptied threads
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -41,6 +41,9 @@ jobs:
           import json, subprocess
           for n in json.load(open("notifications.json")):
               subprocess.run(["gh","issue","comment",str(n["issue"]),"--body",n["body"]], check=False)
+              # The comment above already says why; close without a second one.
+              if n.get("close"):
+                  subprocess.run(["gh","issue","close",str(n["issue"])], check=False)
           PY
 
       - name: Commit + push refreshed state

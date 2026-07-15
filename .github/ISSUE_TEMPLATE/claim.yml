@@ -1,8 +1,10 @@
 name: Claim papers
 description: Claim up to 3 papers from the Journal Club pool to review.
-# The "Claim" buttons on the site prefill this title as "[claim] <Author> et al. <Year> - <Title>".
-# When opening the form manually, keep the "[claim] " prefix and add the paper(s) you're claiming.
-title: "[claim] "
+# The `claim` label is what marks a claim thread: GitHub applies it from here at
+# creation, and scripts/issue_ops.py keys off it. Do NOT remove it — without it a
+# claim filed through this form is ignored.
+# The site's "Claim" buttons prefill the title as "<Author> et al. <Year> - <Title>";
+# opening the form by hand, just describe the paper(s). No title prefix is needed.
 labels: ["claim"]
 body:
   - type: markdown

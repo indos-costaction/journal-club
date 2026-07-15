@@ -30,9 +30,17 @@ ORGANIZERS = set(filter(None, os.environ.get(
 ID_RE = re.compile(r"\b([A-Za-z]+-R?\d+)\b")
 CMD_RE = re.compile(r"/(claim|withdraw|submit|extend)\s+([^\n]*)", re.IGNORECASE)
 
+# What marks a thread as a claim. The claim form applies it at creation time, so it
+# is present on the `opened` payload; issue_ops keys off it rather than off the body.
+CLAIM_LABEL = "claim"
+
 
 def _ids(segment: str) -> list[str]:
     return [m.group(1).upper() for m in ID_RE.finditer(segment)]
+
+
+def _labels(issue: dict) -> set[str]:
+    return {(lb.get("name") or "").lower() for lb in (issue.get("labels") or [])}
 
 
 def _detect_attribution(body: str) -> str:
@@ -80,7 +88,18 @@ def handle_event(event: dict) -> dict:
         author = event["issue"]["user"]["login"].lower()
         body = event["issue"].get("body") or ""
         actor = author
-        commands = [("claim", _ids(body))]
+        # Only a claim thread may drive claim state. Every other issue is none of our
+        # business — stay silent. Previously ANY new issue had its body scanned for
+        # pool IDs and was treated as a claim, so a bug report that merely quoted
+        # "FMRI-01" was answered with a consent rejection (#26).
+        if CLAIM_LABEL in _labels(event["issue"]):
+            commands = [("claim", _ids(body))]
+        elif CMD_RE.search(body):
+            # Hand-filed without the form: an explicit /claim is unambiguous intent.
+            commands = [(m.group(1).lower(), _ids(m.group(2))) for m in CMD_RE.finditer(body)]
+        else:
+            return {"comment": "", "add_labels": [], "assignees": [], "issue": issue,
+                    "changed": False}
         attribution = _detect_attribution(body)
         consent = _detect_consent(body)
     elif name == "issue_comment":
