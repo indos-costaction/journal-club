@@ -27,6 +27,7 @@ const el = (tag, props = {}, ...kids) => {
 };
 
 let POOL = [], STATUS = {}, RANKING = { participants: [] };
+let POOL_BY_ID = new Map();   // id -> paper, for the mosaic hover card
 
 async function load() {
   // GitHub Pages serves these with max-age=600, so a plain fetch can show a claim/
@@ -43,6 +44,7 @@ async function load() {
   POOL = pool;
   STATUS = status;
   RANKING = ranking;
+  POOL_BY_ID = new Map(POOL.map(p => [p.id, p]));
   // build-time slug from site.json is the authoritative repo (unless overridden)
   if (!window.JC_REPO && site && site.repo) REPO = site.repo;
   $("#claimTop").href = newIssueURL(null);
@@ -74,17 +76,14 @@ function renderMosaic() {
   const box = $("#mosaic"); if (!box) return;
   const frag = document.createDocumentFragment();
   const tally = { open: 0, review: 0, done: 0 };
-  const word = { open: "open", review: "in review", done: "complete" };
   for (const p of POOL) {
     const st = paperProgress(p.id);
     tally[st]++;
-    const s = STATUS.papers?.[p.id];
-    const detail = s ? ` · ${s.live_claims}/${STATUS.params.pool_close_threshold} claims` +
-      ` · ${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` : "";
+    // No `title` — the native tooltip only fits the ID and looks nothing like the
+    // site. The hover card below carries the real detail.
     const tile = el("a", {
       className: "s-" + st,
       href: "#row-" + p.id,
-      title: `${p.id} · ${p.modality} · ${word[st]}${detail}`,
       // 242 tab stops in front of the CTA would wreck keyboard navigation; the
       // table below (with its search) is the accessible route to any paper.
       tabIndex: -1,
@@ -100,13 +99,76 @@ function renderMosaic() {
     `${t.reviews_completed} of ${t.papers * STATUS.params.completion_threshold} reviews in`;
 }
 
-// Clicking a tile jumps to that paper's row. Delegated — 242 listeners would be wasteful.
-$("#mosaic")?.addEventListener("click", e => {
-  const tile = e.target.closest("a[data-paper]");
-  if (!tile) return;
-  e.preventDefault();
-  focusPaper(tile.dataset.paper);
-});
+/* ---------------------------------------------------------------------------
+   Hover card. One reusable node, not 242, positioned on demand.
+--------------------------------------------------------------------------- */
+const WORD = { open: "open", review: "in review", done: "complete" };
+
+function tipContent(p) {
+  const s = STATUS.papers?.[p.id] || { live_claims: 0, completed_reviews: 0, status: "open" };
+  const st = paperProgress(p.id);
+  const meta = [p.first_author, p.year, p.venue].filter(Boolean).join(" · ");
+
+  // What the click actually does depends on claimability (`status`), which is not
+  // the same question as progress: a paper can be in review and still claimable.
+  const cta = s.status === "open"
+    ? "Click to find it in the list and claim it →"
+    : s.status === "done"
+      ? "Complete — click to find it in the list →"
+      : "Closed to new claims — click to find it in the list →";
+
+  return [
+    el("p", { className: "tip-title", textContent: p.title }),
+    el("p", { className: "tip-meta", textContent: meta }),
+    el("p", { className: "tip-stats" },
+      el("span", { className: "key k-" + st }),
+      el("span", { textContent: WORD[st] }),
+      el("span", { className: "tip-sep", textContent: "·" }),
+      el("span", { textContent: `${s.live_claims}/${STATUS.params.pool_close_threshold} claims` }),
+      el("span", { className: "tip-sep", textContent: "·" }),
+      el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` })),
+    el("p", { className: "tip-cta", textContent: cta }),
+  ];
+}
+
+function showTip(tile) {
+  const tip = $("#mosaicTip");
+  const p = POOL_BY_ID.get(tile.dataset.paper);
+  if (!tip || !p) return;
+  tip.replaceChildren(...tipContent(p));
+  tip.classList.add("show");          // measurable before positioning: visibility, not display
+
+  const a = tile.getBoundingClientRect(), t = tip.getBoundingClientRect(), gap = 10;
+  const x = Math.max(8, Math.min(a.left + a.width / 2 - t.width / 2, innerWidth - t.width - 8));
+  const below = a.bottom + gap;
+  const y = below + t.height > innerHeight - 8 ? a.top - t.height - gap : below;
+  tip.style.left = `${Math.round(x)}px`;
+  tip.style.top = `${Math.round(Math.max(8, y))}px`;
+}
+
+const hideTip = () => $("#mosaicTip")?.classList.remove("show");
+
+const mosaicBox = $("#mosaic");
+if (mosaicBox) {
+  // mouseover/mouseleave, not mouseenter/mouseout: mouseover bubbles from the tiles,
+  // and hiding only on leaving the whole mosaic avoids a flicker between neighbours.
+  mosaicBox.addEventListener("mouseover", e => {
+    const tile = e.target.closest("a[data-paper]");
+    if (tile) showTip(tile);
+  });
+  mosaicBox.addEventListener("mouseleave", hideTip);
+  // The card is position:fixed, so it would otherwise detach from its tile.
+  addEventListener("scroll", hideTip, { passive: true });
+
+  // Clicking a tile jumps to that paper's row. Delegated — 242 listeners would be wasteful.
+  mosaicBox.addEventListener("click", e => {
+    const tile = e.target.closest("a[data-paper]");
+    if (!tile) return;
+    e.preventDefault();
+    hideTip();
+    focusPaper(tile.dataset.paper);
+  });
+}
 
 function focusPaper(id) {
   document.querySelector('.tabs button[data-tab="pool"]')?.click();

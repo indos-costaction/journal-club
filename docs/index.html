@@ -48,8 +48,10 @@
         <span><span class="key k-review"></span>in review</span>
         <span><span class="key k-done"></span>complete</span>
         <span id="mosaicCount" class="mosaic-count"></span>
-        <span class="mosaic-hint">— click a tile to find it in the list</span>
+        <span class="mosaic-hint">— hover a tile for the paper, click to find it in the list</span>
       </p>
+      <!-- Reusable hover card for the mosaic; positioned by app.js. -->
+      <div id="mosaicTip" class="mosaic-tip" role="presentation"></div>
 
       <div class="hero-actions">
         <a class="btn btn-primary" href="#papers">Browse the papers</a>
@@ -156,24 +158,28 @@
           <label class="chk"><input id="needy" type="checkbox"> Needs reviews only</label>
         </div>
         <p id="poolCount" class="muted"></p>
-        <table id="poolTable">
-          <thead><tr>
-            <th>ID</th><th>Modality</th><th>Paper</th>
-            <th title="copies currently drawn">Claims</th>
-            <th title="reports received">Reviews</th>
-            <th>Status</th><th></th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="table-scroll">
+          <table id="poolTable">
+            <thead><tr>
+              <th>ID</th><th>Modality</th><th>Paper</th>
+              <th title="copies currently drawn">Claims</th>
+              <th title="reports received">Reviews</th>
+              <th>Status</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="board" hidden>
         <p class="muted">Ranked by cumulative quality points (Σ weighted rubric score over floor-passing
           reviews). Withdrawals, expiries, and below-floor reviews earn nothing.</p>
-        <table id="boardTable">
-          <thead><tr><th>#</th><th>Participant</th><th>Points</th><th>Reviews</th><th>Mean</th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="table-scroll">
+          <table id="boardTable">
+            <thead><tr><th>#</th><th>Participant</th><th>Points</th><th>Reviews</th><th>Mean</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
         <p id="boardEmpty" class="muted" hidden>No graded reviews yet — be the first on the board.</p>
       </section>
 
