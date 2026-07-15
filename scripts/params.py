@@ -14,6 +14,16 @@ DEADLINE_DAYS = 12          # days from claim to due date
 EXTENSION_DAYS = 7          # one-time extension length
 REMIND_BEFORE_DAYS = (3, 1)  # nudge when due is this many days away (day 9, day 11)
 
+# --- Submission intake (submission-form.md) --------------------------------
+SITE_URL = "https://indos-costaction.github.io/journal-club/"
+
+# The LimeSurvey "Submit a review" survey. Empty until it is built and published.
+# While empty, messages.py renders an honest "form coming" line instead of a dead
+# link, so this file staying unset is a safe state, not a broken one. Setting it is
+# the single commit that makes per-paper upload links go live everywhere at once.
+# Build spec + runbook: ../../submission-form.md
+SUBMISSION_FORM_URL = ""  # e.g. "https://limesurvey.hes-so.ch/index.php/123456"
+
 # --- Grading rubric (grading-rubric.md) ------------------------------------
 # Five axes, each scored 0-5, combined with these weights (sum == 1.0).
 RUBRIC_WEIGHTS = {

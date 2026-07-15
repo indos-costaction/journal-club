@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
+import messages
 import params
 import rank
 import state
@@ -28,6 +29,7 @@ def _remaining_days(due: datetime, now: datetime) -> float:
 
 def run(now: datetime | None = None) -> list[dict]:
     now = now or state.now_utc()
+    pool = state.load_pool()
     claims = state.load_claims()
     notifications: list[dict] = []
     touched: set[int] = set()
@@ -46,10 +48,8 @@ def run(now: datetime | None = None) -> list[dict]:
                 rec["state"] = "expired"
                 expired_any = True
                 touched.add(issue)
-                notifications.append({"issue": issue, "body":
-                    f"⌛ @{who} your claim on `{pid}` reached its deadline "
-                    f"({rec['due_at'][:10]}) and returned to the pool — **no penalty**. "
-                    f"You can claim it again whenever it is open."})
+                notifications.append(
+                    {"issue": issue, "body": messages.expiry(who, pid, rec, pool)})
                 continue
 
             to_fire = [d for d in THRESHOLDS
@@ -59,10 +59,7 @@ def run(now: datetime | None = None) -> list[dict]:
                 rec["reminded"].extend(f"pre{d}" for d in to_fire)
                 touched.add(issue)
                 notifications.append({"issue": issue, "body":
-                    f"⏰ @{who} your claim on `{pid}` is due in ~{n} day(s) "
-                    f"(**{rec['due_at'][:10]}**). Not going to make it? Reply "
-                    f"`/extend {pid}` for a one-time +{params.EXTENSION_DAYS} days, "
-                    f"or `/withdraw {pid}` to return it — no penalty."})
+                    messages.reminder(who, pid, rec, pool, issue, n)})
 
         # An expiry can empty a thread: nothing is active, so nothing here needs the
         # participant any more (#24). Same rule issue_ops applies after a command —
@@ -75,8 +72,7 @@ def run(now: datetime | None = None) -> list[dict]:
     for note in reversed(notifications):
         if note["issue"] in to_close:
             note["close"] = True
-            note["body"] += ("\n\nNothing else on this thread needs your action — "
-                             "closing it. Open a new claim whenever you like.")
+            note["body"] += "\n\n" + messages.thread_done_after_expiry()
             to_close.discard(note["issue"])
 
     for issue in touched:

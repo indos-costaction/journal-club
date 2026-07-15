@@ -14,7 +14,9 @@ rationale is the initiative's `mechanics.md` and `grading-rubric.md`.
 
 ## Turning a paper around
 
-- **Submit** the annotated PDF (via the private Form) and comment `/submit <ID>` before the deadline.
+- **Submit** by opening that paper's **Upload link** (in the bot's comment on your claim issue, and in
+  every reminder) and dropping the annotated PDF before the deadline. Uploading *is* submitting —
+  there is no command to send.
 - **Withdraw** (`/withdraw <ID>`) any time before the deadline — no penalty; it returns to the pool.
 - **Extend** (`/extend <ID>`) once for **+7 days**. One extension per claim.
 - **Expiry:** at day 12 the paper auto-returns to the pool — no penalty, zero points.

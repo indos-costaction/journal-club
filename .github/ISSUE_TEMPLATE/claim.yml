@@ -47,6 +47,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        After you submit, a bot will confirm your claims and deadlines in a comment.
-        Manage this thread with comments: `/claim <ID>`, `/withdraw <ID>`,
-        `/submit <ID>`, `/extend <ID>`.
+        After you submit, a bot replies here with your papers, their deadlines, and an
+        **upload link for each one** — that link is how you hand in your review, so keep
+        this thread. Uploading is all there is to it; there is no command to send.
+
+        Changed your mind? Comment `/withdraw <ID>` (no penalty), `/extend <ID>` for a
+        one-time +7 days, or `/claim <ID>` to take another.

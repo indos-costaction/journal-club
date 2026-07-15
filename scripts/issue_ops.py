@@ -19,16 +19,21 @@ import os
 import re
 from pathlib import Path
 
+import messages
 import params
 import state
 
-# Organizers may act on any claim thread (e.g. administrative withdrawal). Override
-# with the ORGANIZERS env var (comma-separated GitHub handles).
+# Organizers may act on any claim thread. This is what lets intake.py post
+# `/submit <ID> ref:<n>` on a participant's thread once their upload is in hand —
+# submission is organizer-driven, so this barrier is load-bearing, not a nicety.
+# Override with the ORGANIZERS env var (comma-separated GitHub handles).
 ORGANIZERS = set(filter(None, os.environ.get(
     "ORGANIZERS", "oesteban,guiomarniso").lower().split(",")))
 
 ID_RE = re.compile(r"\b([A-Za-z]+-R?\d+)\b")
 CMD_RE = re.compile(r"/(claim|withdraw|submit|extend)\s+([^\n]*)", re.IGNORECASE)
+# `/submit EEG-15 ref:12345` — the LimeSurvey response id, our submission provenance.
+REF_RE = re.compile(r"\bref:([A-Za-z0-9_-]+)", re.IGNORECASE)
 
 # What marks a thread as a claim. The claim form applies it at creation time, so it
 # is present on the `opened` payload; issue_ops keys off it rather than off the body.
@@ -41,6 +46,16 @@ def _ids(segment: str) -> list[str]:
 
 def _labels(issue: dict) -> set[str]:
     return {(lb.get("name") or "").lower() for lb in (issue.get("labels") or [])}
+
+
+def _split_ref(segment: str) -> tuple[list[str], str | None]:
+    """Pull the ref out of a command segment, then read ids from what's left.
+
+    Stripping first matters: a hypothetical non-numeric ref like `ref:abc-123` would
+    otherwise be scraped by ID_RE as a paper id.
+    """
+    m = REF_RE.search(segment)
+    return _ids(REF_RE.sub(" ", segment)), (m.group(1) if m else None)
 
 
 def _detect_attribution(body: str) -> str:
@@ -60,13 +75,8 @@ def handle_close(issue: int, author: str, claims: dict) -> dict:
             if r["state"] in state.IN_FLIGHT]
     if not held:
         return {"comment": "", "add_labels": [], "assignees": [], "issue": issue, "changed": False}
-    lst = ", ".join(f"`{p}`" for p in held)
-    verb = "is" if len(held) == 1 else "are"
-    body = (f"ℹ️ @{author} closing this issue does **not** release your claims — "
-            f"{lst} {verb} still active and the 12-day deadline keeps running. "
-            f"To return a paper, comment `/withdraw <ID>`; to submit, `/submit <ID>`. "
-            f"Reopen this issue to keep working.")
-    return {"comment": body, "add_labels": [], "assignees": [], "issue": issue, "changed": False}
+    return {"comment": messages.close_notice(author, held), "add_labels": [],
+            "assignees": [], "issue": issue, "changed": False}
 
 
 def handle_event(event: dict) -> dict:
@@ -93,33 +103,36 @@ def handle_event(event: dict) -> dict:
         # pool IDs and was treated as a claim, so a bug report that merely quoted
         # "FMRI-01" was answered with a consent rejection (#26).
         if CLAIM_LABEL in _labels(event["issue"]):
-            commands = [("claim", _ids(body))]
+            commands = [("claim", _ids(body), None)]
         elif CMD_RE.search(body):
             # Hand-filed without the form: an explicit /claim is unambiguous intent.
-            commands = [(m.group(1).lower(), _ids(m.group(2))) for m in CMD_RE.finditer(body)]
+            commands = [(m.group(1).lower(), *_split_ref(m.group(2)))
+                        for m in CMD_RE.finditer(body)]
         else:
             return {"comment": "", "add_labels": [], "assignees": [], "issue": issue,
                     "changed": False}
         attribution = _detect_attribution(body)
         consent = _detect_consent(body)
+        is_form = True  # the claim form: reply with the full onboarding
     elif name == "issue_comment":
         issue = event["issue"]["number"]
         author = event["issue"]["user"]["login"].lower()
         actor = event["comment"]["user"]["login"].lower()
         body = event["comment"].get("body") or ""
-        commands = [(m.group(1).lower(), _ids(m.group(2))) for m in CMD_RE.finditer(body)]
+        commands = [(m.group(1).lower(), *_split_ref(m.group(2)))
+                    for m in CMD_RE.finditer(body)]
         attribution = None
         consent = None
+        is_form = False
     else:
         return {"comment": "", "add_labels": [], "assignees": [], "issue": None, "changed": False}
 
-    if not commands or all(not ids for _c, ids in commands):
+    if not commands or all(not ids for _c, ids, _r in commands):
         return {"comment": "", "add_labels": [], "assignees": [], "issue": issue, "changed": False}
 
     # identity barrier
     if actor != author and actor not in ORGANIZERS:
-        return {"comment": (f"@{actor} only the thread's owner (@{author}) or an organizer "
-                            f"can run claim commands here."),
+        return {"comment": messages.not_your_thread(actor, author),
                 "add_labels": [], "assignees": [], "issue": issue, "changed": False}
 
     claim = claims.get(issue) or state.new_claim(issue, author)
@@ -130,17 +143,16 @@ def handle_event(event: dict) -> dict:
     claims[issue] = claim
 
     # GDPR gate: a first claim requires consent (the form makes the box required)
-    is_claim = any(c == "claim" for c, _ in commands)
+    is_claim = any(c == "claim" for c, _ids_, _ref in commands)
     if is_claim and not claim["consent"]["gdpr"]:
-        return {"comment": ("❌ We can't record a claim without the consent checkbox ticked. "
-                            "Please edit the issue and confirm consent (see `CONSENT.md`)."),
+        return {"comment": messages.consent_missing(),
                 "add_labels": [], "assignees": [], "issue": issue, "changed": False}
 
     now = state.now_utc()
     out = state.Outcome()
     accepted_modalities: set[str] = set()
     attempted = False  # a claim/withdraw/submit command with ids was processed
-    for cmd, ids in commands:
+    for cmd, ids, ref in commands:
         if not ids:
             continue
         if cmd == "claim":
@@ -150,7 +162,7 @@ def handle_event(event: dict) -> dict:
             r = state.apply_withdraw(claim, ids)
             attempted = True
         elif cmd == "submit":
-            r = state.apply_submit(claim, ids)
+            r = state.apply_submit(claim, ids, ref)
             attempted = True
         elif cmd == "extend":
             r = state.apply_extend(claim, ids, now)
@@ -174,12 +186,16 @@ def handle_event(event: dict) -> dict:
 
     add_labels = ["claim"] + [f"mod:{m}" for m in sorted(accepted_modalities)]
     return {
-        "comment": out.comment(author),
+        # `claims` was reloaded above, so the cap line sees this participant's other
+        # threads too — the cap is per participant, not per thread
+        "comment": (messages.claim_confirmation(claim, pool, out, claims) if is_form
+                    else messages.command_ack(claim, pool, out, claims)),
         "add_labels": add_labels,
         "assignees": [author],
         "issue": issue,
         "changed": True,
         "close": close_issue,
+        "close_comment": messages.thread_done() if close_issue else "",
     }
 
 
@@ -197,6 +213,8 @@ def main() -> None:
         "assignees": result["assignees"],
         "changed": result["changed"],
         "close": result.get("close", False),
+        # prose belongs in messages.py, not inline in the workflow YAML
+        "close_comment": result.get("close_comment", ""),
     }, indent=2) + "\n")
     print(f"issue-ops: issue={result['issue']} changed={result['changed']} "
           f"labels={result['add_labels']}")

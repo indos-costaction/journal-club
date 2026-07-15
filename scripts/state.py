@@ -84,6 +84,15 @@ def save_claim(claim: dict) -> Path:
     return path
 
 
+def claim_id(paper_id: str, participant: str, issue: int) -> str:
+    """The canonical join key for one review: ledger filename, inbox PDF filename.
+
+    Lives here (not in ``grade.py``) because ``grade.py`` and ``intake.py`` both key
+    off it and must never drift apart.
+    """
+    return f"{paper_id}--{participant}--{issue}"
+
+
 def new_claim(issue: int, participant: str, attribution: str = "attributed",
               gdpr: bool = False, at: str | None = None) -> dict:
     return {
@@ -192,7 +201,13 @@ class Outcome:
     def accept(self, msg): self.ok.append(msg)
     def reject(self, msg): self.rejected.append(msg)
 
-    def comment(self, participant: str) -> str:
+    def delta(self) -> str:
+        """Render *what just changed* — not the whole comment.
+
+        ``messages.py`` wraps this with the greeting, the current-holdings table and
+        the command reference. Keeping the delta separate from the standing state is
+        what lets one code path serve every command.
+        """
         lines = []
         if self.ok:
             lines.append("**Accepted:**")
@@ -241,8 +256,9 @@ def apply_claim(pool: dict, claims: dict, claim: dict, ids: list[str],
         }
         # reflect immediately so the next id in this batch sees the updated world
         claims[claim["issue"]] = claim
-        out.accept(f"`{pid}` claimed — due **{iso(due)[:10]}** "
-                   f"({active_cap_count(claims, participant)}/{params.ACTIVE_CLAIM_CAP} active).")
+        # the running cap and the due date are restated by messages.holdings_table();
+        # the delta stays a delta
+        out.accept(f"`{pid}` claimed — due **{iso(due)[:10]}**.")
     return out
 
 
@@ -259,7 +275,13 @@ def apply_withdraw(claim: dict, ids: list[str]) -> Outcome:
     return out
 
 
-def apply_submit(claim: dict, ids: list[str]) -> Outcome:
+def apply_submit(claim: dict, ids: list[str], ref: str | None = None) -> Outcome:
+    """Record an upload as received.
+
+    Normally driven by the organizers' ``intake.py`` once the PDF is in hand, not by
+    the participant — uploading *is* submitting. ``ref`` is the LimeSurvey response
+    id (the store of record), carried in the comment as ``/submit <ID> ref:<n>``.
+    """
     out = Outcome()
     for raw in ids:
         pid = raw.strip().upper()
@@ -268,7 +290,9 @@ def apply_submit(claim: dict, ids: list[str]) -> Outcome:
             out.reject(f"`{pid}` — no active claim to submit (already submitted or returned?).")
             continue
         rec["state"] = "submitted"
-        out.accept(f"`{pid}` marked submitted — organizers will verify your upload and grade it.")
+        if ref:
+            rec["submission_ref"] = ref
+        out.accept(f"`{pid}` received — it's with the organizers for grading.")
     return out
 
 

@@ -9,11 +9,15 @@ accompanies sign-up; ticking the consent box on the claim form confirms you have
 ## What we collect
 
 - Your **GitHub handle** and the papers you claim/return/submit (public, in this repo's `claims/`).
-- Your **annotated PDFs**, uploaded to a **private, access-controlled store** (Google Form → restricted
-  Drive), visible only to the organizers and you.
-- At sign-up, via the private Form: your **email + institution** (private; used only to contact you and
-  to verify eligibility), and your **attribution choice** for the public board.
+- Your **annotated PDFs**, uploaded through our submission form to the **HES-SO institutional
+  LimeSurvey** (`limesurvey.hes-so.ch` — EU/CH data residency), visible only to the organizers and you.
+  Each upload also records which paper and claim it belongs to, and your no-AI declaration.
+- Your **attribution choice** for the public board (from the claim form).
 - The **rubric scores** organizers assign your reviews (public handle + numbers only — no PDF, no email).
+
+We do **not** collect your email or institution. The claim thread on GitHub is our contact channel, and
+participation is open to everyone, so there is nothing to verify. If you later qualify for co-authorship
+we'll ask you for contact details then, separately.
 
 ## What we publish
 
@@ -35,6 +39,7 @@ organizers; withdrawal does not affect already-published aggregate/anonymised ma
 
 ## Data controller & contact
 
-Proposed data controller: the Local Organiser's institution (CSIC) or HES-SO (**to be ratified**).
-Contact: the WG3 mailing list / the organizers named on the
+Proposed data controller: **HES-SO Valais-Wallis**, acting on behalf of the INDoS COST Action — it hosts
+the LimeSurvey instance your uploads are stored on (**to be ratified**; CSIC remains the alternative).
+Contact: oscar.esteban@hes-so.ch, the WG3 mailing list, or the organizers named on the
 [journal club page](https://www.indos-costaction.eu/working-groups/wg3/federated-journal-club).
