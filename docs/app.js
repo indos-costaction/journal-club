@@ -57,23 +57,75 @@ async function load() {
   scrollToPapersIfDeepLinked();
 }
 
+// The mosaic answers "how far along is this paper?", which is NOT the table's
+// `status` field: that one answers "can I still claim it?" and stays "open" until
+// five people hold it. A paper with one claimant is being read, so it must not
+// look untouched. Progress is therefore derived here, from the counts.
+const REVIEW = "review", DONE = "done", OPEN = "open";
+function paperProgress(id) {
+  const s = STATUS.papers?.[id];
+  if (!s) return OPEN;
+  if (s.status === "done") return DONE;
+  return (s.live_claims > 0 || s.completed_reviews > 0) ? REVIEW : OPEN;
+}
+
 // Hero mosaic: one tile per paper, in pool.json order (which is clustered by modality).
-// Same three states as the pool table, in the navy-legible --m-* shades.
 function renderMosaic() {
   const box = $("#mosaic"); if (!box) return;
   const frag = document.createDocumentFragment();
-  const tally = { open: 0, closed: 0, done: 0 };
+  const tally = { open: 0, review: 0, done: 0 };
+  const word = { open: "open", review: "in review", done: "complete" };
   for (const p of POOL) {
-    const s = STATUS.papers?.[p.id]?.status || "open";
-    tally[s] = (tally[s] || 0) + 1;
-    frag.append(el("i", { className: "s-" + s, title: `${p.id} · ${p.modality} · ${s}` }));
+    const st = paperProgress(p.id);
+    tally[st]++;
+    const s = STATUS.papers?.[p.id];
+    const detail = s ? ` · ${s.live_claims}/${STATUS.params.pool_close_threshold} claims` +
+      ` · ${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` : "";
+    const tile = el("a", {
+      className: "s-" + st,
+      href: "#row-" + p.id,
+      title: `${p.id} · ${p.modality} · ${word[st]}${detail}`,
+      // 242 tab stops in front of the CTA would wreck keyboard navigation; the
+      // table below (with its search) is the accessible route to any paper.
+      tabIndex: -1,
+    });
+    tile.dataset.paper = p.id;
+    frag.append(tile);
   }
   box.replaceChildren(frag);
   box.setAttribute("aria-label",
-    `Paper pool: ${tally.open} open, ${tally.closed} in review, ${tally.done} complete, of ${POOL.length}.`);
+    `Paper pool: ${tally.open} not yet started, ${tally.review} in review, ${tally.done} complete, of ${POOL.length}.`);
   const t = STATUS.totals;
   if (t) $("#mosaicCount").textContent =
     `${t.reviews_completed} of ${t.papers * STATUS.params.completion_threshold} reviews in`;
+}
+
+// Clicking a tile jumps to that paper's row. Delegated — 242 listeners would be wasteful.
+$("#mosaic")?.addEventListener("click", e => {
+  const tile = e.target.closest("a[data-paper]");
+  if (!tile) return;
+  e.preventDefault();
+  focusPaper(tile.dataset.paper);
+});
+
+function focusPaper(id) {
+  document.querySelector('.tabs button[data-tab="pool"]')?.click();
+  let row = document.getElementById("row-" + id);
+  if (!row) {
+    // A filter or search is hiding it — the tile promised a paper, so reveal it.
+    $("#search").value = "";
+    $("#modality").value = "";
+    $("#status").value = "";
+    $("#needy").checked = false;
+    syncFiltersToURL();
+    renderPool();
+    row = document.getElementById("row-" + id);
+  }
+  if (!row) return;
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+  row.classList.remove("row-focus");
+  void row.offsetWidth;            // restart the flash when the same tile is clicked twice
+  row.classList.add("row-focus");
 }
 
 // The pool now sits below the fold behind a landing hero, so old deep links
@@ -132,7 +184,7 @@ function renderPool() {
     const action = canClaim
       ? el("a", { className: "claim", href: newIssueURL(p), textContent: "Claim" })
       : el("span", { className: "muted", textContent: s.status === "done" ? "—" : "closed" });
-    tbody.append(el("tr", {},
+    tbody.append(el("tr", { id: "row-" + p.id },   // hero mosaic tiles link here
       el("td", { textContent: p.id }),
       el("td", { textContent: p.modality }),
       title,

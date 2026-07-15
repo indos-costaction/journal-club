@@ -41,13 +41,14 @@
       <p class="hero-tagline">242 papers. 10 imaging modalities. One critically-read map of the
         preprocessing literature — built by people, not machines.</p>
 
-      <!-- One tile per paper, coloured by live status; filled in by app.js from status.json. -->
+      <!-- One tile per paper, coloured by reading progress; filled in by app.js from status.json. -->
       <div id="mosaic" class="mosaic" role="img" aria-label="Loading paper pool status…"></div>
       <p class="mosaic-legend">
         <span><span class="key k-open"></span>open</span>
-        <span><span class="key k-closed"></span>in review</span>
+        <span><span class="key k-review"></span>in review</span>
         <span><span class="key k-done"></span>complete</span>
         <span id="mosaicCount" class="mosaic-count"></span>
+        <span class="mosaic-hint">— click a tile to find it in the list</span>
       </p>
 
       <div class="hero-actions">
