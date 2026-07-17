@@ -10,12 +10,10 @@
     "EEG-23": {
       "state": "active",
       "claimed_at": "2026-07-07T09:18:26Z",
-      "due_at": "2026-07-19T09:18:26Z",
-      "extended": false,
+      "due_at": "2026-07-26T09:18:26Z",
+      "extended": true,
       "submission_ref": null,
-      "reminded": [
-        "pre3"
-      ]
+      "reminded": []
     }
   }
 }
