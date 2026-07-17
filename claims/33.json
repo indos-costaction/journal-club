@@ -1,0 +1,19 @@
+{
+  "issue": 33,
+  "participant": "fatihonay",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-07-17T21:23:21Z"
+  },
+  "papers": {
+    "MEG-13": {
+      "state": "active",
+      "claimed_at": "2026-07-17T21:23:21Z",
+      "due_at": "2026-07-29T21:23:21Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
