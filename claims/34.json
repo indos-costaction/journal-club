@@ -1,0 +1,19 @@
+{
+  "issue": 34,
+  "participant": "cpescato",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-07-18T11:01:03Z"
+  },
+  "papers": {
+    "FNIRS-R1": {
+      "state": "active",
+      "claimed_at": "2026-07-18T11:01:03Z",
+      "due_at": "2026-07-30T11:01:03Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
