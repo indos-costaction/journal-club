@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-26T08:21:52Z",
+  "generated_at": "2026-07-27T09:44:11Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -162,7 +162,7 @@
     "EEG-15": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
@@ -218,7 +218,7 @@
     "EEG-22": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
@@ -226,7 +226,7 @@
     "EEG-23": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
@@ -634,7 +634,7 @@
     "DMRI-02": {
       "modality": "dMRI",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
