@@ -8,7 +8,7 @@
   },
   "papers": {
     "MEG-13": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-07-17T21:23:21Z",
       "due_at": "2026-07-29T21:23:21Z",
       "extended": false,
@@ -24,7 +24,9 @@
       "due_at": "2026-08-02T06:07:48Z",
       "extended": false,
       "submission_ref": null,
-      "reminded": []
+      "reminded": [
+        "pre3"
+      ]
     }
   }
 }

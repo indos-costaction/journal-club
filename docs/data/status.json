@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-29T10:18:14Z",
+  "generated_at": "2026-07-30T08:20:23Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -426,7 +426,7 @@
     "MEG-13": {
       "modality": "MEG",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
