@@ -8,7 +8,7 @@
   },
   "papers": {
     "FNIRS-R1": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-07-18T11:01:03Z",
       "due_at": "2026-07-30T11:01:03Z",
       "extended": false,
