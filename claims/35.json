@@ -10,13 +10,10 @@
     "FNIRS-R2": {
       "state": "active",
       "claimed_at": "2026-07-29T10:18:14Z",
-      "due_at": "2026-08-10T10:18:14Z",
-      "extended": false,
+      "due_at": "2026-08-17T10:18:14Z",
+      "extended": true,
       "submission_ref": null,
-      "reminded": [
-        "pre3",
-        "pre1"
-      ]
+      "reminded": []
     }
   }
 }
