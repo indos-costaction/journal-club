@@ -10,13 +10,10 @@
     "EEG-08": {
       "state": "active",
       "claimed_at": "2026-07-31T21:39:11Z",
-      "due_at": "2026-08-12T21:39:11Z",
-      "extended": false,
+      "due_at": "2026-08-19T21:39:11Z",
+      "extended": true,
       "submission_ref": null,
-      "reminded": [
-        "pre3",
-        "pre1"
-      ]
+      "reminded": []
     }
   }
 }
