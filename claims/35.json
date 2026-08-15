@@ -13,7 +13,9 @@
       "due_at": "2026-08-17T10:18:14Z",
       "extended": true,
       "submission_ref": null,
-      "reminded": []
+      "reminded": [
+        "pre3"
+      ]
     }
   }
 }
