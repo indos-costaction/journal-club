@@ -8,15 +8,16 @@
   },
   "papers": {
     "FNIRS-R1": {
-      "state": "expired",
+      "state": "pending",
       "claimed_at": "2026-07-18T11:01:03Z",
       "due_at": "2026-07-30T11:01:03Z",
       "extended": false,
-      "submission_ref": null,
+      "submission_ref": "19",
       "reminded": [
         "pre3",
         "pre1"
-      ]
+      ],
+      "pending_since": "2026-08-17T16:06:56Z"
     }
   }
 }
