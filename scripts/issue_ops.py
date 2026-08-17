@@ -212,6 +212,7 @@ def handle_event(event: dict) -> dict:
     now = state.now_utc()
     out = state.Outcome()
     accepted_modalities: set[str] = set()
+    confirm_needed: list[str] = []   # papers this command just put in the /confirm queue
     attempted = False  # a state-changing command with ids was processed
     for cmd, ids, ref in commands:
         if not ids:
@@ -229,7 +230,15 @@ def handle_event(event: dict) -> dict:
             r = state.apply_withdraw(claim, ids)
             attempted = True
         elif cmd == "received":
+            # Which papers this receipt actually moves into `pending`, so the reply can
+            # spell out what /confirm attests for exactly those. Measured as a
+            # transition, not as "is pending now": a re-upload against an already-
+            # pending paper needs no second explanation, and apply_receive's same-ref
+            # no-op is not a transition at all.
+            before = {p: r_["state"] for p, r_ in claim["papers"].items()}
             r = state.apply_receive(claim, ids, now, ref)
+            confirm_needed += [p for p, r_ in claim["papers"].items()
+                               if r_["state"] == "pending" and before.get(p) != "pending"]
             attempted = True
         elif cmd == "confirm":
             r = state.apply_confirm(claim, ids, now)
@@ -274,7 +283,8 @@ def handle_event(event: dict) -> dict:
         # `claims` was reloaded above, so the cap line sees this participant's other
         # threads too — the cap is per participant, not per thread
         "comment": (messages.claim_confirmation(claim, pool, out, claims) if is_form
-                    else messages.command_ack(claim, pool, out, claims)),
+                    else messages.command_ack(claim, pool, out, claims,
+                                              confirm_needed=confirm_needed)),
         "add_labels": add_labels,
         "assignees": [author],
         "issue": issue,

@@ -204,6 +204,32 @@ declaration. It's one comment, and we ask for it; you don't have to remember it.
 Then we grade it against the [rubric]({params.SITE_URL}participate.html#how-to-review-a-paper)."""
 
 
+def _confirm_attestation(pid: str) -> str:
+    """What `/confirm` actually attests — the single source of that wording.
+
+    Without this the ask was one table cell reading "⏳ `/confirm EEG-15` to sign it
+    off", and nothing said what was being signed. The upload form already collects the
+    no-AI declaration ("I declare that I read and annotated this paper myself, without
+    AI assistance"), so from the claimant's side a bare `/confirm` reads as a redundant
+    second click, and a signature nobody understands is a rubber stamp.
+
+    What the reply adds is not a second declaration but an **authenticated** one: the
+    form is open-access, its link is published in a public claim thread, and the `gh`
+    field is a URL parameter anyone can edit. So the form's answer is attributable to
+    whoever had the link, which is everyone. The GitHub reply is attributable to one
+    account. Say that plainly rather than implying we disbelieve the first answer.
+    """
+    return (f"**Before `{pid}` can be graded**, reply **`/confirm {pid}`** on this thread "
+            f"to confirm that:\n\n"
+            f"- this upload is yours, and\n"
+            f"- you read and annotated the paper **yourself, without AI assistance**.\n\n"
+            f"You answered that on the upload form too, but that form is open to anyone "
+            f"with the link — it can't tell who filled it in. Your reply here is signed by "
+            f"your GitHub account, so it's what actually puts your name on the review and "
+            f"on the no-AI declaration.\n\n"
+            f"Didn't upload this? **Don't confirm it** — say so here and we'll drop it.")
+
+
 def _prose_list(items: list[str]) -> str:
     if len(items) < 2:
         return "".join(items)
@@ -244,10 +270,18 @@ def claim_confirmation(claim: dict, pool: dict, outcome, claims: dict) -> str:
     return "\n\n".join(p for p in parts if p.strip())
 
 
-def command_ack(claim: dict, pool: dict, outcome, claims: dict) -> str:
-    """Reply to any command comment: delta + where you stand."""
+def command_ack(claim: dict, pool: dict, outcome, claims: dict,
+                confirm_needed: list[str] | tuple[str, ...] = ()) -> str:
+    """Reply to any command comment: delta + where you stand.
+
+    ``confirm_needed`` names the papers this command just moved into ``pending`` — i.e.
+    the ones the claimant now has to sign off. Only the transition qualifies, so a
+    re-upload against an already-pending paper is acknowledged without repeating the
+    attestation at someone who has already read it.
+    """
     who = claim["participant"]
     parts = [f"@{who} —", outcome.delta()]
+    parts += [_confirm_attestation(pid) for pid in confirm_needed]
     table = holdings_table(claim, pool)
     if table:
         parts += [f"**On this thread you hold:**\n\n{table}" + _cap_line(claim, claims),
@@ -293,24 +327,10 @@ def not_allowed(actor: str, cmd: str, author: str) -> str:
     return f"`/{cmd}` — organizers only."
 
 
-def confirm_request(claim: dict, pool: dict, pid: str) -> str:
-    """Posted when an upload lands: the sign-off we need before it counts.
-
-    This is where the no-AI declaration acquires an authenticated author, so it has to
-    restate what is being attested — a `/confirm` that doesn't say what it means would
-    be a rubber stamp, and we'd have gained nothing over the anonymous form.
-    """
-    who = claim["participant"]
-    return (f"📄 @{who} — we've got your annotated PDF for **{pid}**{_title_suffix(pool, pid)}. "
-            f"One last thing before it goes to grading.\n\n"
-            f"Reply **`/confirm {pid}`** on this thread to confirm that:\n\n"
-            f"- this upload is yours, and\n"
-            f"- you read and annotated the paper **yourself, without AI assistance**.\n\n"
-            f"That's your signature on the review — the upload link is public, so your "
-            f"reply here is what puts your name on it. Nothing else is needed.\n\n"
-            f"Didn't upload this? **Don't confirm it** — just say so here and we'll drop it. "
-            f"Uploaded the wrong file? Upload the right one and we'll ask again.\n\n"
-            f"_Your deadline is on hold until you confirm — no rush, nothing is at risk._")
+# `confirm_request` lived here: a standalone version of the sign-off ask that nothing
+# ever posted. Its wording is now `_confirm_attestation`, reached from command_ack (on
+# the /received reply) and confirm_nudge. Two copies of participant-facing prose, one of
+# them unreachable, is how the reachable one ends up wrong.
 
 
 def reject_notice(who: str, pids: list[str]) -> str:
@@ -331,13 +351,19 @@ def reject_notice(who: str, pids: list[str]) -> str:
 
 
 def confirm_nudge(who: str, pid: str, pool: dict, days: int) -> str:
+    """The day-3 / day-7 reminder for an unconfirmed upload.
+
+    Carries the attestation too, not just the command. Someone who acts on the nudge
+    rather than on the original receipt would otherwise sign without ever being told
+    what the signature means — and it is the nudge that reaches anyone whose receipt
+    predates this wording.
+    """
     return (f"👋 @{who} your annotated PDF for `{pid}` has been sitting with us for "
-            f"~{days} day(s), waiting on your sign-off. Reply **`/confirm {pid}`** and it "
-            f"goes to grading.\n\n"
+            f"~{days} day(s), waiting on your sign-off.\n\n"
+            f"{_confirm_attestation(pid)}\n\n"
             f"Nothing is at risk — there's no deadline on this and the work is safe. But it "
             f"won't be graded, and it holds one of your {params.ACTIVE_CLAIM_CAP} slots, "
-            f"until you do.\n\n"
-            f"Didn't upload it? Say so here rather than confirming it.")
+            f"until you do.")
 
 
 def consent_missing() -> str:

@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import grade  # noqa: E402
 import issue_ops  # noqa: E402
+import messages  # noqa: E402
 import params  # noqa: E402
 import rank  # noqa: E402
 import state  # noqa: E402
@@ -399,6 +400,64 @@ class TestIngestMatcherRealArchive(unittest.TestCase):
         self.assertEqual(intake._slug("Pipeline-(HAPPE)-Data.pdf"),
                          "pipeline-(happe)-data.pdf")
         self.assertEqual(intake._slug("  my review.pdf "), "my-review.pdf")
+
+
+class TestConfirmSaysWhatItAttests(Base):
+    """`/confirm` has to state what is being signed, or it is a rubber stamp.
+
+    The ask used to be one table cell — "⏳ `/confirm EEG-15` to sign it off" — and
+    nothing said what "it" was. Since the upload form already collects the no-AI
+    declaration, a bare second click reads as redundant, which is exactly the question
+    that surfaced this. What the GitHub reply adds is not a second declaration but an
+    authenticated one: the form is open-access and its `gh` field is a URL parameter.
+    """
+
+    def receipt(self, ref="1"):
+        self.claim_paper()
+        return self.comment(f"/received {PAPER} ref:{ref}", actor=ORGANIZER)["comment"]
+
+    def test_the_receipt_states_both_things_being_confirmed(self):
+        body = self.receipt()
+        self.assertIn("this upload is yours", body)
+        self.assertIn("without AI assistance", body)
+        self.assertIn(f"/confirm {PAPER}", body)
+
+    def test_it_explains_why_the_form_answer_is_not_enough(self):
+        """Without this the ask looks like we disbelieve their form answer."""
+        body = self.receipt()
+        self.assertIn("open to anyone with the link", body)
+        self.assertIn("signed by your GitHub account", body)
+
+    def test_a_reupload_is_acknowledged_without_repeating_the_attestation(self):
+        """They are already pending and have already read it once."""
+        self.receipt(ref="1")
+        again = self.comment(f"/received {PAPER} ref:2", actor=ORGANIZER)["comment"]
+        self.assertIn("newer upload received", again)
+        self.assertNotIn("without AI assistance", again)
+
+    def test_an_unrelated_command_carries_no_attestation(self):
+        self.claim_paper()
+        self.assertNotIn("without AI assistance", self.comment(f"/extend {PAPER}")["comment"])
+
+    def test_only_the_paper_just_received_is_named(self):
+        self.claim_paper()
+        self.claim_paper(pid="EEG-22", issue=ISSUE)
+        body = self.comment(f"/received {PAPER} ref:1", actor=ORGANIZER)["comment"]
+        self.assertIn(f"Before `{PAPER}` can be graded", body)
+        self.assertNotIn("Before `EEG-22` can be graded", body)
+
+    def test_the_nudge_carries_it_too(self):
+        """It is the nudge that reaches anyone whose receipt predates this wording —
+        including the five claims received on 2026-08-17."""
+        body = messages.confirm_nudge(AUTHOR, PAPER, state.load_pool(), 3)
+        self.assertIn("without AI assistance", body)
+        self.assertIn(f"/confirm {PAPER}", body)
+
+    def test_the_wording_has_exactly_one_source(self):
+        """A second, unreachable copy is how the reachable one goes stale."""
+        src = Path(messages.__file__).read_text()
+        self.assertEqual(src.count("without AI assistance**"), 1)
+        self.assertNotIn("def confirm_request", src)
 
 
 class TestLatenessIsAPropertyOfTheUpload(unittest.TestCase):
