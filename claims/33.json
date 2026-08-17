@@ -8,15 +8,16 @@
   },
   "papers": {
     "MEG-13": {
-      "state": "expired",
+      "state": "pending",
       "claimed_at": "2026-07-17T21:23:21Z",
       "due_at": "2026-07-29T21:23:21Z",
       "extended": false,
-      "submission_ref": null,
+      "submission_ref": "20",
       "reminded": [
         "pre3",
         "pre1"
-      ]
+      ],
+      "pending_since": "2026-08-17T16:07:16Z"
     },
     "MEG-09": {
       "state": "expired",
