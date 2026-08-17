@@ -49,8 +49,10 @@ import subprocess
 import sys
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 
+import params
 import state
 
 # Default: a sibling of the repo, i.e. the PRIVATE parent initiative folder
@@ -290,10 +292,46 @@ def latest_per_claim(uploads: list[Upload]) -> list[Upload]:
     return sorted(best.values(), key=lambda u: (u.issue, u.paper))
 
 
+def _parse_submitdate(ts: str) -> datetime | None:
+    """LimeSurvey's ``submitdate``, e.g. ``2026-07-17 11:25:17``. None if unparseable.
+
+    Read as UTC. It is really the survey server's local time, which is the stricter
+    reading for a Swiss-hosted survey (CEST is ahead of UTC, so this lands an upload
+    *later* than it happened) — hence ``params.SUBMITDATE_GRACE_HOURS``.
+    """
+    ts = (ts or "").strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            return datetime.strptime(ts, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def upload_was_late(u: Upload, rec: dict) -> bool | None:
+    """Did this upload actually miss its deadline? ``None`` when we cannot tell.
+
+    **Lateness is a property of the upload, not of the claim's current state.** The
+    sweep expires on a cron; retrieval is manual. So ``state == "expired"`` at intake
+    time says only that *we* were slow, and using it as the test punishes participants
+    for organizer latency. It did: all five files in the 2026-08 backlog had been
+    uploaded between 5 hours and 9 days inside their deadlines, and every one was
+    reported as LATE — under a heading whose own explanation said the gap was ours.
+
+    Needs the response export (``--map``): an inbox filename carries no date, so the
+    inbox-only feed can only answer ``None``.
+    """
+    submitted = _parse_submitdate(u.submitted_at)
+    due = (rec or {}).get("due_at")
+    if submitted is None or not due:
+        return None
+    return submitted > state.parse(due) + timedelta(hours=params.SUBMITDATE_GRACE_HOURS)
+
+
 # --- the reconcile core (pure) ---------------------------------------------
 def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
     """Pure: uploads + claims -> buckets. The feed-agnostic heart of intake."""
-    matched, to_post, late, awaiting_confirm, unmatchable = [], [], [], [], []
+    matched, to_post, late, undated, awaiting_confirm, unmatchable = [], [], [], [], [], []
     seen: set[tuple] = set()
 
     for u in uploads:
@@ -311,13 +349,18 @@ def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
             continue
         seen.add((u.issue, u.paper))
         st = rec["state"]
-        if st == "active":
-            to_post.append(u)
-        elif st == "expired":
-            # They uploaded; the daily sweep expired the claim before we got here. The
-            # deadline is a cron but retrieval is manual, so this gap is *our* latency,
-            # not their lateness. /received accepts it — but surface it, don't bury it.
-            late.append(u)
+        if st in ("active", "expired"):
+            # Decided on the upload's own timestamp, never on `st` — see
+            # upload_was_late. An expired claim whose file arrived in time is an
+            # ordinary receipt, and an active claim whose file arrived after the
+            # deadline is genuinely late even though the sweep has not run yet.
+            verdict = upload_was_late(u, rec)
+            if verdict is True:
+                late.append(u)
+            elif verdict is None and st == "expired":
+                undated.append(u)      # no submitdate to judge by: re-run with --map
+            else:
+                to_post.append(u)
         elif st == "pending":
             awaiting_confirm.append((u, claim["participant"]))
         elif st in ("submitted", "completed"):
@@ -331,7 +374,7 @@ def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
                 for pid, rec in c["papers"].items()
                 if rec["state"] == "active" and (issue, pid) not in seen]
 
-    return {"matched": matched, "to_post": to_post, "late": late,
+    return {"matched": matched, "to_post": to_post, "late": late, "undated": undated,
             "awaiting_confirm": awaiting_confirm,
             "awaiting": sorted(awaiting), "unmatchable": unmatchable}
 
@@ -347,13 +390,19 @@ def _report(b: dict, bad: list[str]) -> None:
         _line(u)
     print(f"\n📥 to post (/received)      {len(b['to_post'])}")
     for u in b["to_post"]:
-        _line(u)
+        _line(u, f" · uploaded {u.submitted_at}" if u.submitted_at else "")
     if b["late"]:
-        print(f"\n⚠️  LATE — claim expired     {len(b['late'])}")
-        print("     Uploaded, but the sweep expired the claim before intake ran.")
-        print("     /received accepts these; check the submitdate and post them.")
+        print(f"\n⚠️  LATE — uploaded after the deadline  {len(b['late'])}")
+        print("     Judged on the upload's own timestamp, not on when intake ran.")
+        print("     /received accepts these anyway; post them if you're minded to.")
         for u in b["late"]:
             _line(u, f" · uploaded {u.submitted_at or '?'}")
+    if b["undated"]:
+        print(f"\n❔ expired, upload date unknown  {len(b['undated'])}")
+        print("     The claim expired and the inbox filename carries no date, so whether")
+        print("     these were on time cannot be answered from here. Re-run with --map.")
+        for u in b["undated"]:
+            _line(u)
     if b["awaiting_confirm"]:
         print(f"\n🖊️  awaiting their /confirm  {len(b['awaiting_confirm'])}")
         print("     Posted; waiting on the claimant to sign off. Nothing to do.")
@@ -380,7 +429,11 @@ def _gather(args) -> tuple[list[Upload], list[str]]:
     inbox = _resolve_inbox(args.inbox)
     uploads, bad = uploads_from_inbox(inbox)
 
-    refs: dict[tuple, str | None] = {}
+    # (issue, paper) -> (response id, submitdate). The date is not decoration: it is
+    # the only thing that can say whether an upload actually missed its deadline, and
+    # an inbox filename carries no date at all. Without --map every expired claim is
+    # simply unjudgeable, which reconcile now reports as such rather than assuming.
+    meta: dict[tuple, tuple[str | None, str]] = {}
     if args.map:
         # has_file for the same reason cmd_ingest uses it, and it matters more here:
         # this ref is written into the claim record by /received and is the permanent
@@ -390,7 +443,7 @@ def _gather(args) -> tuple[list[Upload], list[str]]:
         # submitdate and sort last — which is luck, not a property worth relying on.
         responses = latest_per_claim(
             [u for u in uploads_from_csv(Path(args.map)) if has_file(u)])
-        refs = {(u.issue, u.paper): u.ref for u in responses}
+        meta = {(u.issue, u.paper): (u.ref, u.submitted_at) for u in responses}
         have = {(u.issue, u.paper) for u in uploads}
         pending = [u for u in responses if (u.issue, u.paper) not in have]
         if pending:
@@ -401,9 +454,11 @@ def _gather(args) -> tuple[list[Upload], list[str]]:
 
     unreadable = f", {len(bad)} unreadable filename(s)" if bad else ""
     print(f"inbox: {inbox}   ({len(uploads) + len(bad)} PDF(s){unreadable})")
-    enriched = [Upload(u.issue, u.paper, u.gh, ref=refs.get((u.issue, u.paper)),
-                       source=u.source)
-                for u in uploads]
+    enriched = []
+    for u in uploads:
+        ref, submitted_at = meta.get((u.issue, u.paper), (None, ""))
+        enriched.append(Upload(u.issue, u.paper, u.gh, ref=ref,
+                               submitted_at=submitted_at, source=u.source))
     return enriched, bad
 
 

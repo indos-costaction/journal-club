@@ -391,6 +391,87 @@ class TestIngestMatcherRealArchive(unittest.TestCase):
         self.assertEqual(intake._slug("  my review.pdf "), "my-review.pdf")
 
 
+class TestLatenessIsAPropertyOfTheUpload(unittest.TestCase):
+    """Whether an upload was late is decided by when it arrived, not by when we looked.
+
+    `reconcile` used to bucket on ``rec["state"] == "expired"``, which the daily sweep
+    sets on a cron while retrieval is manual. So an organizer who ran intake weeks late
+    saw every punctual upload reported as LATE — under a heading whose own explanatory
+    text said the delay was the organizers'. All five files in the 2026-08 backlog had
+    landed between 5 hours and 9 days inside their deadlines.
+    """
+
+    DUE = "2026-07-26T09:20:45Z"
+
+    def _u(self, submitted_at):
+        import intake
+        return intake.Upload(issue=9, paper=PAPER, gh=AUTHOR, ref="11",
+                             submitted_at=submitted_at)
+
+    def _rec(self, st="expired"):
+        return {"state": st, "due_at": self.DUE}
+
+    def test_an_expired_claim_whose_file_arrived_in_time_is_not_late(self):
+        import intake
+        self.assertIs(intake.upload_was_late(self._u("2026-07-17 11:57:23"), self._rec()),
+                      False)
+
+    def test_an_upload_after_the_deadline_is_late(self):
+        import intake
+        self.assertIs(intake.upload_was_late(self._u("2026-07-28 10:00:00"), self._rec()),
+                      True)
+
+    def test_the_verdict_is_unknown_without_a_submitdate(self):
+        """The inbox filename carries no date; only --map can answer this."""
+        import intake
+        self.assertIsNone(intake.upload_was_late(self._u(""), self._rec()))
+        self.assertIsNone(intake.upload_was_late(self._u("2026-07-17 11:57:23"), {}))
+
+    def test_the_grace_absorbs_the_timezone_ambiguity(self):
+        """submitdate is server-local, due_at is UTC, and the export says neither."""
+        import intake, params
+        just_over = "2026-07-26 11:00:00"      # +1h40m past due, inside the grace
+        way_over = "2026-07-26 23:00:00"       # +13h40m, outside it
+        self.assertIs(intake.upload_was_late(self._u(just_over), self._rec()), False)
+        self.assertIs(intake.upload_was_late(self._u(way_over), self._rec()), True)
+        self.assertGreaterEqual(params.SUBMITDATE_GRACE_HOURS, 2, "must cover CEST")
+
+    def test_reconcile_routes_a_punctual_expired_upload_to_to_post(self):
+        import intake
+        claims = {9: {"issue": 9, "participant": AUTHOR,
+                      "papers": {PAPER: self._rec("expired")}}}
+        b = intake.reconcile([self._u("2026-07-17 11:57:23")], claims)
+        self.assertEqual([u.paper for u in b["to_post"]], [PAPER])
+        self.assertEqual(b["late"], [])
+        self.assertEqual(b["undated"], [])
+
+    def test_reconcile_still_flags_a_genuinely_late_upload(self):
+        import intake
+        claims = {9: {"issue": 9, "participant": AUTHOR,
+                      "papers": {PAPER: self._rec("expired")}}}
+        b = intake.reconcile([self._u("2026-07-30 10:00:00")], claims)
+        self.assertEqual([u.paper for u in b["late"]], [PAPER])
+        self.assertEqual(b["to_post"], [])
+
+    def test_reconcile_flags_an_active_claim_whose_upload_missed_the_deadline(self):
+        """The sweep runs daily, so `active` does not prove the deadline holds."""
+        import intake
+        claims = {9: {"issue": 9, "participant": AUTHOR,
+                      "papers": {PAPER: self._rec("active")}}}
+        b = intake.reconcile([self._u("2026-07-30 10:00:00")], claims)
+        self.assertEqual([u.paper for u in b["late"]], [PAPER])
+
+    def test_an_undatable_expired_upload_is_neither_cleared_nor_condemned(self):
+        """Without --map we cannot tell, and guessing either way is worse than saying so."""
+        import intake
+        claims = {9: {"issue": 9, "participant": AUTHOR,
+                      "papers": {PAPER: self._rec("expired")}}}
+        b = intake.reconcile([self._u("")], claims)
+        self.assertEqual([u.paper for u in b["undated"]], [PAPER])
+        self.assertEqual(b["late"], [])
+        self.assertEqual(b["to_post"], [])
+
+
 class TestResponsesWithoutAFile(unittest.TestCase):
     """A response can reach the form and carry no file. It is not a lost upload.
 

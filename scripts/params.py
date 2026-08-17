@@ -14,6 +14,16 @@ DEADLINE_DAYS = 12          # days from claim to due date
 EXTENSION_DAYS = 7          # one-time extension length
 REMIND_BEFORE_DAYS = (3, 1)  # nudge when due is this many days away (day 9, day 11)
 
+# Grace applied when deciding whether an upload actually missed its deadline
+# (intake.upload_was_late). LimeSurvey stamps `submitdate` in the survey's own
+# timezone and the export does not say which, while `due_at` is UTC — so a naive
+# comparison carries a couple of hours of slack in an unknown direction. Rather than
+# hardcode an offset that a DST change or a server move would silently invalidate,
+# absorb the whole uncertainty. The bias is deliberate: missing a deadline here costs
+# someone their slot, no penalty attaches to being an hour over, and an organizer sees
+# every case anyway.
+SUBMITDATE_GRACE_HOURS = 3
+
 # Days after an upload is received to nudge a participant who hasn't confirmed it yet.
 # There is no auto-expiry for a pending paper: the deadline clock stops at `pending`
 # (sweep only expires `active`), and the file already exists — binning someone's
