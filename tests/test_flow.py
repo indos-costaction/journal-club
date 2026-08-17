@@ -460,6 +460,42 @@ class TestConfirmSaysWhatItAttests(Base):
         self.assertNotIn("def confirm_request", src)
 
 
+class TestNoReassuranceAboutConsequences(unittest.TestCase):
+    """The bot never tells a contributor that something won't be held against them.
+
+    Reassurance implies the opposite is possible. "No penalty", "nothing counts against
+    you", "no hard feelings" all plant the idea that some path through this pipeline
+    *does* carry consequences for a contributor — and none does. Withdrawing, missing a
+    deadline and declining an upload are ordinary outcomes, so they get stated as
+    outcomes: what happens to the paper, and what to do next.
+
+    This scans the source rather than one rendered message, because the phrasing kept
+    reappearing in new strings one at a time.
+    """
+
+    BANNED = ("no penalty", "nothing counts against", "held against you",
+              "no hard feelings", "nothing at risk", "nothing is at risk",
+              "nothing lost", "no sanction", "not penalised", "not penalized")
+
+    def test_participant_facing_prose_carries_none_of_it(self):
+        src = Path(messages.__file__).read_text().lower()
+        # comments explain mechanics to maintainers; only the strings are participant-facing
+        prose = "\n".join(ln for ln in src.splitlines()
+                          if not ln.lstrip().startswith("#"))
+        for phrase in self.BANNED:
+            with self.subTest(phrase=phrase):
+                self.assertNotIn(phrase, prose)
+
+    def test_the_outcome_lines_carry_none_of_it_either(self):
+        """state.py's apply_* accept/reject strings are participant-facing too."""
+        src = Path(state.__file__).read_text().lower()
+        prose = "\n".join(ln for ln in src.splitlines()
+                          if not ln.lstrip().startswith("#"))
+        for phrase in self.BANNED:
+            with self.subTest(phrase=phrase):
+                self.assertNotIn(phrase, prose)
+
+
 class TestDecline(Base):
     """`/decline` — the other answer to `/confirm`.
 

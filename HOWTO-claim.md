@@ -45,8 +45,8 @@ what says *this review is mine, and I did the work myself without AI* — it's w
 hard rule mean anything.
 
 Nothing to remember: the bot @-mentions you, GitHub emails you, you reply. And **the clock stops the
-moment we have your file** — a received paper never expires, so there's no rush and nothing at risk
-while you get to it.
+moment we have your file** — a received paper never expires, so there's no rush while you get
+to it.
 
 ## Managing your claims (comment on your claim issue)
 
@@ -55,7 +55,7 @@ while you get to it.
 | `/claim EEG-05` | claim another paper (if under your 3-claim cap) |
 | `/confirm EEG-03` | sign off your upload — **only you can send this one** |
 | `/decline EEG-03 <why>` | **won't** sign off an upload — see below |
-| `/withdraw EEG-03` | return a paper to the pool — no penalty |
+| `/withdraw EEG-03` | return a paper to the pool |
 | `/extend EEG-03` | one-time **+7 days** on the deadline |
 
 Organizers can help with any of these on your behalf — except `/confirm`, which is yours alone.
@@ -80,5 +80,5 @@ need very different things from us, and the command alone can't tell us which.
 ## Reminders
 The system @-mentions you **3 days** and **1 day** before each deadline (GitHub emails you), and each
 nudge repeats that paper's Upload link. At day 12 a paper you haven't uploaded returns to the pool
-automatically — no penalty. Reply `/extend` or `/withdraw` if you need to. Once your file is in, the
+automatically. Reply `/extend` or `/withdraw` if you need to. Once your file is in, the
 deadline is behind you: we'll nudge you to `/confirm`, but that one has no clock on it.

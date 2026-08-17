@@ -13,7 +13,7 @@ the public reads is a pure, idempotent recompute — so every Action is safe to 
 |---|---|---|
 | Claim ≤3 papers | open a **Claim papers** issue (or `/claim <ID>`) | a bot validates the cap + availability, sets 12-day deadlines, assigns the issue to you, and replies with a per-paper **Upload link** |
 | Manage a claim | comment `/withdraw <ID>`, `/extend <ID>` | withdraw frees the slot; extend adds a one-time +7 days |
-| Get reminded | — | the daily sweep @-mentions you at day 9 and day 11 (repeating the Upload link); day 12 auto-returns a paper you haven't uploaded (no penalty) |
+| Get reminded | — | the daily sweep @-mentions you at day 9 and day 11 (repeating the Upload link); day 12 auto-returns a paper you haven't uploaded |
 | Hand in a review | open that paper's **Upload link** and drop the annotated PDF | the link carries the claim key, so organizers' `intake.py` matches it and posts `/received <ID>` on your thread — which **stops the deadline clock** |
 | Sign it off | reply `/confirm <ID>` when the bot asks | it's graded against the 5-axis rubric and your score enters the leaderboard |
 | Refuse an upload | reply `/decline <ID> <why>` instead | for "that wasn't me" or "I want to send a new version" — the paper stays yours with the time that was left on its clock, and the declined file is never graded or re-attached |

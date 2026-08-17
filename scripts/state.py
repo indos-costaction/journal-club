@@ -292,7 +292,7 @@ def apply_withdraw(claim: dict, ids: list[str]) -> Outcome:
             out.reject(f"`{pid}` — you have no active claim on this paper.")
             continue
         rec["state"] = "withdrawn"
-        out.accept(f"`{pid}` returned to the pool — no penalty. Slot freed.")
+        out.accept(f"`{pid}` returned to the pool. Slot freed.")
     return out
 
 

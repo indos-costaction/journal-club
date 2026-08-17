@@ -33,8 +33,8 @@ import state
 # Rendered instead of an upload link while SUBMISSION_FORM_URL is unset, so a
 # half-built pathway degrades to an honest promise rather than a dead link.
 FORM_PENDING = (
-    "> ⏳ **The upload form isn't live yet.** We'll comment here the moment it is, and your "
-    "deadline won't be held against you in the meantime — so start reading now."
+    "> ⏳ **The upload form isn't live yet.** We'll comment here the moment it is, and we'll "
+    "move your deadline to match — so start reading now."
 )
 
 _NO_AI = (
@@ -175,7 +175,7 @@ def _cap_line(claim: dict, claims: dict) -> str:
 def _commands(extra_claim: bool = True, pending: bool = False) -> str:
     rows = [
         ("`/extend <ID>`", f"One-time **+{params.EXTENSION_DAYS} days**. Once per paper."),
-        ("`/withdraw <ID>`", "Back to the pool. **No penalty** — far better than a rushed review."),
+        ("`/withdraw <ID>`", "Back to the pool — a better outcome than a rushed review."),
     ]
     if pending:
         # Shown only while something is actually awaiting sign-off. `/decline` is
@@ -248,9 +248,8 @@ def declined_note(reason_given: bool) -> str:
            "\n\nCould you add a line here about what happened? Anything is useful — "
            "\"that wasn't my upload\" and \"I want to redo some comments\" need very "
            "different things from us, and we can't tell which from the command alone.")
-    return (f"An organizer will pick this up. Nothing counts against you, the paper is "
-            f"still yours, and the file you declined won't be graded or re-attached — "
-            f"a new upload gets a new id.{ask}")
+    return (f"An organizer will pick this up. The paper is still yours, and the file you "
+            f"declined won't be graded or re-attached — a new upload gets a new id.{ask}")
 
 
 def _prose_list(items: list[str]) -> str:
@@ -263,8 +262,8 @@ def _deadline_footer() -> str:
     when = _prose_list([f"{d} day{'' if d == 1 else 's'}"
                         for d in sorted(params.REMIND_BEFORE_DAYS, reverse=True)])
     return (f"---\n\nYou get **{params.DEADLINE_DAYS} days** per paper, and we'll nudge you "
-            f"{when} before each deadline. Miss one and the paper simply returns to the pool "
-            f"— **no penalty**, and you're welcome to claim it again.")
+            f"{when} before each deadline. Miss one and the paper returns to the pool, and you "
+            f"can claim it again whenever you like.")
 
 
 def _form_banner() -> str:
@@ -331,14 +330,13 @@ def reminder(who: str, pid: str, rec: dict, pool: dict, issue: int, days: int) -
                 f"+{params.EXTENSION_DAYS} days.")
     return (f"⏰ @{who} your claim on `{pid}` is due in ~{days} day(s) "
             f"(**{rec['due_at'][:10]}**). Done reading? {up}.{ext} "
-            f"Not going to finish? `/withdraw {pid}` returns it — no penalty, and that's a "
-            f"perfectly good outcome.")
+            f"Not going to finish? `/withdraw {pid}` returns it, which is a perfectly good "
+            f"outcome.")
 
 
 def expiry(who: str, pid: str, rec: dict, pool: dict) -> str:
     return (f"⌛ @{who} your claim on `{pid}` reached its deadline ({rec['due_at'][:10]}) and "
-            f"returned to the pool — **no penalty**, nothing held against you. It's open again "
-            f"if you'd still like it: `/claim {pid}`.")
+            f"returned to the pool. It's open again if you'd still like it: `/claim {pid}`.")
 
 
 def not_your_thread(actor: str, author: str) -> str:
@@ -390,9 +388,9 @@ def confirm_nudge(who: str, pid: str, pool: dict, days: int) -> str:
     return (f"👋 @{who} your annotated PDF for `{pid}` has been sitting with us for "
             f"~{days} day(s), waiting on your sign-off.\n\n"
             f"{_confirm_attestation(pid)}\n\n"
-            f"Nothing is at risk — there's no deadline on this and the work is safe. But it "
-            f"won't be graded, and it holds one of your {params.ACTIVE_CLAIM_CAP} slots, "
-            f"until you do.")
+            f"There's no deadline on this one — the clock stopped when your file arrived. But "
+            f"it won't be graded, and it holds one of your {params.ACTIVE_CLAIM_CAP} slots, "
+            f"until you sign it off.")
 
 
 def consent_missing() -> str:
@@ -410,7 +408,7 @@ def not_recorded() -> str:
     after filing a claim reads exactly like success. This says otherwise.
     """
     return ("⚠️ Something went wrong on our side and **nothing was recorded** — your claims "
-            "and deadlines are exactly as they were before this. Nothing is held against you. "
+            "and deadlines are exactly as they were before this. "
             "Please post the same command again in a few minutes; if it fails a second time "
             "the organizers will pick it up from the run log.")
 
@@ -437,8 +435,8 @@ def thread_done(claim: dict) -> str:
                 "are with the organizers for grading, and your points will appear on the "
                 f"leaderboard once they're scored. Open a new claim whenever you like → "
                 f"{params.SITE_URL}#papers")
-    return ("Nothing on this thread needs your action — closing it. Nothing is held against "
-            f"you, and you're welcome to claim again whenever suits you → {params.SITE_URL}#papers")
+    return ("Nothing on this thread needs your action — closing it. Claim again whenever "
+            f"suits you → {params.SITE_URL}#papers")
 
 
 def thread_done_after_expiry() -> str:
@@ -447,6 +445,5 @@ def thread_done_after_expiry() -> str:
     Distinct from thread_done(): nothing here was submitted, so promising that
     'your points will appear once scored' would be a small lie at a bad moment.
     """
-    return (f"Nothing else on this thread needs your action — closing it. No hard feelings and "
-            f"nothing lost: the paper is back in the pool, and you're welcome to claim it, or "
-            f"any other, whenever suits you → {params.SITE_URL}#papers")
+    return (f"Nothing else on this thread needs your action — closing it. The paper is back "
+            f"in the pool; claim it, or any other, whenever suits you → {params.SITE_URL}#papers")

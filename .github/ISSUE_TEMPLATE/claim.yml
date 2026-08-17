@@ -56,5 +56,5 @@ body:
         Not your upload, or want to send a new version? Comment `/decline <ID>` with a
         line saying which — the paper stays yours and that file is never graded.
 
-        Changed your mind? Comment `/withdraw <ID>` (no penalty), `/extend <ID>` for a
+        Changed your mind? Comment `/withdraw <ID>`, `/extend <ID>` for a
         one-time +7 days, or `/claim <ID>` to take another.

@@ -23,15 +23,15 @@ rationale is the initiative's `mechanics.md` and `grading-rubric.md`.
   is what puts your name on the review and on the **no-AI declaration**. The bot @-mentions you and
   GitHub emails you, so there is nothing to remember — you reply.
 - **The clock stops the moment we receive your upload.** A received paper never expires, so taking
-  your time over the sign-off costs you nothing and puts nothing at risk.
+  your time over the sign-off changes nothing.
 - **Or refuse it** (`/decline <ID> <why>`) — for either "that upload wasn't me" (the link is public,
   so it can happen) or "that was me, but I want to send a new version". The paper stays yours, with
   the time that was still on its clock when the file arrived, and that file is never graded and
   never re-attached. Say which of the two it is; we cannot tell from the command. This one an
   organizer *can* send for you, unlike `/confirm` — refusing on someone's behalf forges nothing.
-- **Withdraw** (`/withdraw <ID>`) any time before the deadline — no penalty; it returns to the pool.
+- **Withdraw** (`/withdraw <ID>`) any time before the deadline; it returns to the pool.
 - **Extend** (`/extend <ID>`) once for **+7 days**. One extension per claim.
-- **Expiry:** at day 12 a paper you have not uploaded auto-returns to the pool — no penalty, zero points.
+- **Expiry:** at day 12 a paper you have not uploaded auto-returns to the pool; it earns no points.
 - **Partial reviews are not accepted** — withdraw rather than hand in an incomplete review.
 - **Reviews that break the rules are removed** (`/reject <ID>`, organizers only) — including after
   grading. The rules are the ones on this page; the one that matters most is no AI.
