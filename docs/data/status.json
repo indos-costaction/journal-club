@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-17T13:38:12Z",
+  "generated_at": "2026-08-17T13:40:07Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -1898,7 +1898,7 @@
     "CROSS-28": {
       "modality": "Cross-modality",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "completed_reviews": 0,
       "status": "open",
       "outstanding_need": 3
