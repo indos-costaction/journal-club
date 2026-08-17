@@ -454,10 +454,84 @@ class TestConfirmSaysWhatItAttests(Base):
         self.assertIn(f"/confirm {PAPER}", body)
 
     def test_the_wording_has_exactly_one_source(self):
-        """A second, unreachable copy is how the reachable one goes stale."""
-        src = Path(messages.__file__).read_text()
-        self.assertEqual(src.count("without AI assistance**"), 1)
-        self.assertNotIn("def confirm_request", src)
+        """A second copy is how the reachable one goes stale.
+
+        That source is now `messages.md`, not the Python: the attestation must appear
+        in the catalogue exactly once and nowhere in the code that assembles it.
+        """
+        import prose
+        catalogue = Path(prose.CATALOGUE).read_text()
+        self.assertEqual(catalogue.count("without AI assistance**"), 1)
+        self.assertNotIn("without AI assistance", Path(messages.__file__).read_text())
+        self.assertNotIn("def confirm_request", Path(messages.__file__).read_text())
+
+
+class TestCatalogue(unittest.TestCase):
+    """`messages.md` holds every sentence; the Python only assembles them.
+
+    The point of the split is that prose can be revised by someone who does not read
+    Python, so these guard the two ways that breaks: a message that no longer renders,
+    and prose creeping back into the code.
+    """
+
+    # one plausible value per placeholder the catalogue uses
+    SAMPLE = dict(pid="EEG-15", raw="EEG-15", who="someone", actor="someone",
+                  author="someone", ref="11", st="pending", live=2, due="2026-08-29",
+                  days=3, n=1, cap=3, left=2, note="", tail="", verb="is",
+                  slots="that slot frees", url="https://example.org", up="…", ext="",
+                  when="3 days and 1 day", papers="`EEG-15`", cmd="received",
+                  attestation="…", no_ai="…", followup="…")
+
+    def test_every_entry_renders(self):
+        """A placeholder nobody supplies would post a half-rendered sentence."""
+        import prose
+        for key in prose.TEXT:
+            with self.subTest(key=key):
+                need = prose.placeholders(key)
+                missing = need - set(self.SAMPLE) - set(prose._DEFAULTS)
+                self.assertEqual(missing, set(),
+                                 f"'{key}' wants {missing}; add it to SAMPLE or fix the entry")
+                out = prose.t(key, **{k: v for k, v in self.SAMPLE.items() if k in need})
+                self.assertNotIn("{", out, f"'{key}' left a placeholder unrendered")
+
+    def test_an_unknown_key_fails_loudly(self):
+        import prose
+        with self.assertRaises(KeyError):
+            prose.t("no.such.message")
+
+    def test_a_missing_placeholder_fails_loudly(self):
+        """Rather than rendering an empty string into someone's thread."""
+        import prose
+        with self.assertRaises(KeyError):
+            prose.t("claim.ok")          # wants pid and due
+
+    def test_params_are_available_without_being_passed(self):
+        import prose
+        self.assertIn(str(params.EXTENSION_DAYS), prose.t("commands.extend"))
+
+    def test_no_prose_is_left_in_the_engine(self):
+        """If a sentence is in the Python, the catalogue is not the single source."""
+        import ast
+        for mod in (messages, state):
+            src = Path(mod.__file__).read_text()
+            tree = ast.parse(src)
+            docs = {id(n.body[0].value) for n in ast.walk(tree)
+                    if isinstance(n, (ast.FunctionDef, ast.Module, ast.ClassDef)) and n.body
+                    and isinstance(n.body[0], ast.Expr)
+                    and isinstance(n.body[0].value, ast.Constant)}
+            stray = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant)
+                     and isinstance(n.value, str) and len(n.value) > 30 and id(n) not in docs]
+            self.assertEqual(stray, [], f"{Path(mod.__file__).name} still holds prose")
+
+    def test_every_entry_is_reachable_from_the_code(self):
+        """An entry nothing renders is prose that silently does nothing."""
+        import prose
+        used = "\n".join(Path(m.__file__).read_text() for m in (messages, state))
+        orphans = sorted(k for k in prose.TEXT if f'"{k}"' not in used)
+        # keys built dynamically, so grep cannot see them
+        dynamic = {"claim_confirmation.welcome", "claim_confirmation.refused",
+                   "reject_notice.one", "reject_notice.many"}
+        self.assertEqual(set(orphans) - dynamic, set())
 
 
 class TestNoReassuranceAboutConsequences(unittest.TestCase):
@@ -477,23 +551,26 @@ class TestNoReassuranceAboutConsequences(unittest.TestCase):
               "no hard feelings", "nothing at risk", "nothing is at risk",
               "nothing lost", "no sanction", "not penalised", "not penalized")
 
-    def test_participant_facing_prose_carries_none_of_it(self):
-        src = Path(messages.__file__).read_text().lower()
-        # comments explain mechanics to maintainers; only the strings are participant-facing
-        prose = "\n".join(ln for ln in src.splitlines()
-                          if not ln.lstrip().startswith("#"))
-        for phrase in self.BANNED:
-            with self.subTest(phrase=phrase):
-                self.assertNotIn(phrase, prose)
+    def test_the_catalogue_carries_none_of_it(self):
+        """Scans `messages.md`, which is where the sentences now live.
 
-    def test_the_outcome_lines_carry_none_of_it_either(self):
-        """state.py's apply_* accept/reject strings are participant-facing too."""
-        src = Path(state.__file__).read_text().lower()
-        prose = "\n".join(ln for ln in src.splitlines()
-                          if not ln.lstrip().startswith("#"))
+        This test previously scanned messages.py and state.py. Moving the prose into
+        the catalogue silently turned it into a no-op — it passed against a file with
+        no prose in it — and only a mutation check caught that. If the sentences ever
+        move again, move this with them.
+        """
+        import prose as prose_mod
+        rendered = "\n".join(prose_mod.TEXT.values()).lower()
         for phrase in self.BANNED:
             with self.subTest(phrase=phrase):
-                self.assertNotIn(phrase, prose)
+                self.assertNotIn(phrase, rendered)
+
+    def test_it_is_scanning_something_that_actually_holds_prose(self):
+        """Guards the failure above: a scan of an empty haystack always passes."""
+        import prose as prose_mod
+        rendered = "\n".join(prose_mod.TEXT.values())
+        self.assertGreater(len(rendered), 4000)
+        self.assertIn("returned to the pool", rendered)
 
 
 class TestDecline(Base):

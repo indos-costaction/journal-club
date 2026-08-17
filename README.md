@@ -37,7 +37,8 @@ docs/                 GitHub Pages site (index.html + app.js) and the web-served
   data/ranking.json   DERIVED leaderboard
 claims/<issue>.json   AUTHORITATIVE dynamic truth — one file per claim issue
 ledger/<claim>.json   AUTHORITATIVE scores — one file per graded review
-scripts/              state.py (engine) · messages.py (all participant-facing prose) · seed_pool.py
+scripts/              state.py (engine) · messages.md (ALL participant-facing prose — edit here)
+                      messages.py (assembly) · prose.py (catalogue loader) · seed_pool.py
                       issue_ops.py · sweep.py · intake.py · rank.py · grade.py · params.py
 .github/workflows/    issue-ops.yml · daily-sweep.yml · grade.yml
 RULES.md · HOWTO-claim.md · CONSENT.md

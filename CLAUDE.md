@@ -64,6 +64,16 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
   surrounding my-grants monorepo. IDs are deterministic — sort key is `(citationCount desc, paperId)` —
   so re-running reproduces the same IDs; a backfill only appends, never re-sorts.
 
+`scripts/messages.md` is the **message catalogue** — every sentence the club says to a
+participant, as `## key` sections of markdown. `scripts/prose.py` loads it (`prose.t(key, **kw)`);
+`params` constants are pre-seeded, so an entry can write `{DEADLINE_DAYS}` with no call-site
+argument. **Revise participant-facing wording there, not in the Python.** It lives in its own
+module because `messages.py` imports `state`, so `state` — whose `apply_*` outcome lines are
+participant-facing too — cannot import `messages` back; both import `prose`. The split is
+sentences vs assembly: the catalogue says *what*, `messages.py` decides *which block when* and
+builds the tables. `tests/test_flow.py::TestCatalogue` renders every entry, fails on an
+unrenderable placeholder or an unreachable key, and asserts no prose is left in the engine.
+
 `scripts/params.py` is the **single source of truth for every tunable rule** (caps, thresholds,
 deadlines, rubric weights, modality→ID-prefix map). These mirror the WG3-ratifiable defaults in
 `mechanics.md` / `grading-rubric.md`. **Change a value here and every script follows** — do not

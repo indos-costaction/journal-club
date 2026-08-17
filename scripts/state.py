@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import params
+import prose
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -231,12 +232,12 @@ class Outcome:
         """
         lines = []
         if self.ok:
-            lines.append("**Accepted:**")
+            lines.append(prose.t("delta.accepted_heading"))
             lines += [f"- ✅ {m}" for m in self.ok]
         if self.rejected:
-            lines.append("**Not applied:**")
+            lines.append(prose.t("delta.rejected_heading"))
             lines += [f"- ❌ {m}" for m in self.rejected]
-        return "\n".join(lines) if lines else "_No recognised command found._"
+        return "\n".join(lines) if lines else prose.t("delta.nothing")
 
 
 def apply_claim(pool: dict, claims: dict, claim: dict, ids: list[str],
@@ -248,23 +249,22 @@ def apply_claim(pool: dict, claims: dict, claim: dict, ids: list[str],
     for raw in ids:
         pid = raw.strip().upper()
         if pid not in pool:
-            out.reject(f"`{raw}` is not a paper id in the pool.")
+            out.reject(prose.t("claim.not_in_pool", raw=raw))
             continue
         if participant_holds(claims, participant, pid):
-            out.reject(f"`{pid}` — you already hold this paper.")
+            out.reject(prose.t("claim.already_held", pid=pid))
             continue
         live = len(live_claimants(claims, pid))
         completed = completed_count(claims, pid)
         st = paper_status(live, completed)
         if st == "done":
-            out.reject(f"`{pid}` is complete (≥{params.COMPLETION_THRESHOLD} reviews) — pick another.")
+            out.reject(prose.t("claim.paper_done", pid=pid))
             continue
         if st == "closed":
-            out.reject(f"`{pid}` is closed ({live} claimants) — pick a paper still open.")
+            out.reject(prose.t("claim.paper_closed", pid=pid, live=live))
             continue
         if active_cap_count(claims, participant) >= params.ACTIVE_CLAIM_CAP:
-            out.reject(f"`{pid}` — you already hold {params.ACTIVE_CLAIM_CAP} active claims; "
-                       f"withdraw one first.")
+            out.reject(prose.t("claim.at_cap", pid=pid))
             continue
         due = now + timedelta(days=params.DEADLINE_DAYS)
         claim["papers"][pid] = {
@@ -279,7 +279,7 @@ def apply_claim(pool: dict, claims: dict, claim: dict, ids: list[str],
         claims[claim["issue"]] = claim
         # the running cap and the due date are restated by messages.holdings_table();
         # the delta stays a delta
-        out.accept(f"`{pid}` claimed — due **{iso(due)[:10]}**.")
+        out.accept(prose.t("claim.ok", pid=pid, due=iso(due)[:10]))
     return out
 
 
@@ -289,10 +289,10 @@ def apply_withdraw(claim: dict, ids: list[str]) -> Outcome:
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
         if not rec or rec["state"] not in IN_FLIGHT:
-            out.reject(f"`{pid}` — you have no active claim on this paper.")
+            out.reject(prose.t("withdraw.no_claim", pid=pid))
             continue
         rec["state"] = "withdrawn"
-        out.accept(f"`{pid}` returned to the pool. Slot freed.")
+        out.accept(prose.t("withdraw.ok", pid=pid))
     return out
 
 
@@ -322,17 +322,16 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
         if not rec:
-            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            out.reject(prose.t("receive.no_such_paper", pid=pid))
             continue
         if rec["state"] not in RECEIVABLE:
-            out.reject(f"`{pid}` — can't record an upload against a `{rec['state']}` claim.")
+            out.reject(prose.t("receive.wrong_state", pid=pid, st=rec["state"]))
             continue
         if ref and ref in declined_refs(rec):
             # The claimant refused this exact file. `intake.reconcile` keeps it out of
             # `to_post`, so reaching here means a hand-typed /received — the one path
             # that would otherwise walk a disavowal back and ask them to confirm it again.
-            out.reject(f"`{pid}` — response `{ref}` was declined by the claimant; "
-                       f"it can't be recorded. A new upload gets a new id.")
+            out.reject(prose.t("receive.was_declined", pid=pid, ref=ref))
             continue
         if rec["state"] == "pending" and ref and rec.get("submission_ref") == ref:
             # Same LimeSurvey response id = the same file seen twice (a workflow re-run,
@@ -342,8 +341,7 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
             # (messages.upload_url) mints a fresh response id per submission, so an equal
             # ref cannot be a genuine re-upload. With no ref we cannot tell, so we fall
             # through and restamp.
-            out.accept(f"`{pid}` — already recorded (ref `{ref}`); still waiting on your "
-                       f"`/confirm {pid}`.")
+            out.accept(prose.t("receive.same_ref", pid=pid, ref=ref))
             continue
         was = rec["state"]
         rec["state"] = "pending"
@@ -361,13 +359,11 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
             # 2026-08 backlog were inside their deadlines and this line would have told
             # every one of them otherwise. Whether someone was actually late is
             # intake.upload_was_late's question, and it needs the submitdate to answer.
-            out.accept(f"`{pid}` — upload received and **accepted**; your claim is "
-                       f"reinstated. Confirm it below and it counts in full.")
+            out.accept(prose.t("receive.from_expired", pid=pid))
         elif was == "pending":
-            out.accept(f"`{pid}` — newer upload received; it replaces the earlier one. "
-                       f"Still needs your confirmation below.")
+            out.accept(prose.t("receive.replacing", pid=pid))
         else:
-            out.accept(f"`{pid}` — upload received. It needs your confirmation below.")
+            out.accept(prose.t("receive.ok", pid=pid))
     return out
 
 
@@ -384,18 +380,17 @@ def apply_confirm(claim: dict, ids: list[str], now: datetime) -> Outcome:
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
         if not rec:
-            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            out.reject(prose.t("receive.no_such_paper", pid=pid))
             continue
         if rec["state"] == "submitted":
-            out.accept(f"`{pid}` — already confirmed; it's with the organizers. Nothing to do.")
+            out.accept(prose.t("confirm.already", pid=pid))
             continue
         if rec["state"] != "pending":
-            out.reject(f"`{pid}` — nothing to confirm (we have no upload for it yet). "
-                       f"Upload it first and we'll ask you here.")
+            out.reject(prose.t("confirm.nothing_to_confirm", pid=pid))
             continue
         rec["state"] = "submitted"
         rec["confirmed_at"] = iso(now)
-        out.accept(f"`{pid}` confirmed — thank you. It's with the organizers for grading.")
+        out.accept(prose.t("confirm.ok", pid=pid))
     return out
 
 
@@ -438,23 +433,20 @@ def apply_decline(claim: dict, ids: list[str], now: datetime, by: str,
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
         if not rec:
-            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            out.reject(prose.t("receive.no_such_paper", pid=pid))
             continue
         ref = rec.get("submission_ref")
         if rec["state"] == "active" and ref is None and rec.get("declined"):
             # Already declined. Accept as a no-op rather than reject: the rebase-retry
             # loop re-runs this script, and a second stamp would make the claim file
             # differ on a re-apply. Same shape as apply_confirm's already-`submitted`.
-            out.accept(f"`{pid}` — already declined; nothing more to do. "
-                       f"Upload again whenever you're ready.")
+            out.accept(prose.t("decline.already", pid=pid))
             continue
         if rec["state"] == "submitted":
-            out.reject(f"`{pid}` — you already confirmed this one, so it's with the "
-                       f"organizers. Ask them here and they can pull it back.")
+            out.reject(prose.t("decline.already_confirmed", pid=pid))
             continue
         if rec["state"] != "pending":
-            out.reject(f"`{pid}` — nothing to decline; we're not holding an upload "
-                       f"for it.")
+            out.reject(prose.t("decline.nothing_to_decline", pid=pid))
             continue
 
         rec["declined"] = rec.get("declined", []) + [
@@ -465,8 +457,7 @@ def apply_decline(claim: dict, ids: list[str], now: datetime, by: str,
         # the old deadline's nudges already fired; re-arm them against the new one
         rec["reminded"] = []
         rec.pop("pending_since", None)
-        out.accept(f"`{pid}` — understood, we won't grade that upload. The paper is "
-                   f"still yours, due **{rec['due_at'][:10]}**.")
+        out.accept(prose.t("decline.ok", pid=pid, due=rec["due_at"][:10]))
     return out
 
 
@@ -492,16 +483,15 @@ def apply_reject(claim: dict, ids: list[str], now: datetime, by: str) -> Outcome
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
         if not rec:
-            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            out.reject(prose.t("receive.no_such_paper", pid=pid))
             continue
         if rec["state"] in FREED:
-            out.reject(f"`{pid}` — already `{rec['state']}`; it counts for nothing already.")
+            out.reject(prose.t("reject.already_freed", pid=pid, st=rec["state"]))
             continue
         rec["state"] = "rejected"
         rec["rejected_at"] = iso(now)
         rec["rejected_by"] = by
-        out.accept(f"`{pid}` has been withdrawn by the organizers and no longer counts. "
-                   f"The paper is back in the pool.")
+        out.accept(prose.t("reject.ok", pid=pid))
     return out
 
 
@@ -513,20 +503,17 @@ def apply_extend(claim: dict, ids: list[str], now: datetime) -> Outcome:
         if rec and rec["state"] in ("pending", "submitted"):
             # Not an error worth spending their extension on: the clock already stopped
             # when we received the upload. Say so rather than "no active claim".
-            out.reject(f"`{pid}` — no deadline left to extend; we already have your "
-                       f"upload and the clock stopped.")
+            out.reject(prose.t("extend.clock_stopped", pid=pid))
             continue
         if not rec or rec["state"] != "active":
-            out.reject(f"`{pid}` — no active claim to extend.")
+            out.reject(prose.t("extend.no_active_claim", pid=pid))
             continue
         if rec["extended"]:
-            out.reject(f"`{pid}` — you have already used your one-time extension. "
-                       f"Withdraw it if you cannot finish.")
+            out.reject(prose.t("extend.already_used", pid=pid))
             continue
         due = parse(rec["due_at"]) + timedelta(days=params.EXTENSION_DAYS)
         rec["due_at"] = iso(due)
         rec["extended"] = True
         rec["reminded"] = []  # nudges re-fire against the new deadline
-        out.accept(f"`{pid}` extended to **{iso(due)[:10]}** — this was your one-time "
-                   f"+{params.EXTENSION_DAYS}-day extension.")
+        out.accept(prose.t("extend.ok", pid=pid, due=iso(due)[:10]))
     return out
