@@ -89,6 +89,13 @@ class TestPushBeforeAnnounce(unittest.TestCase):
 
 
 class TestConcurrency(unittest.TestCase):
+    def test_the_push_group_queues_rather_than_cancelling(self):
+        """`queue: single` (the default) cancels a *pending* run when a third arrives —
+        a participant's command vanishing with no comment and no error."""
+        for f in ("issue-ops.yml", "grade.yml"):
+            with self.subTest(workflow=f):
+                self.assertIn("queue: max", code(f))
+
     def test_the_sweep_does_not_share_the_push_group(self):
         """Sharing it would give a 06:00 UTC cron a way to cancel a queued command."""
         self.assertNotIn("group: jc-state-push", code("daily-sweep.yml"))

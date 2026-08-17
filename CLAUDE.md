@@ -127,8 +127,9 @@ everywhere except the leaderboard.
   property structural rather than positional.
 - The `jc-state-push` group (`issue-ops` + `grade`) reduces contention; it does **not** serialise, and must
   not be relied on — GitHub's own timestamps show two `issue-ops` runs overlapping by 12 s on 2026-07-31.
-  Correctness is the retry loop plus the ordering above. `daily-sweep` is deliberately in its own group:
-  sharing would let a 06:00 UTC cron cancel a queued command.
+  Correctness is the retry loop plus the ordering above. It carries `queue: max` because the default
+  `queue: single` **cancels a pending run** when a third arrives, losing a participant's command silently.
+  `daily-sweep` is deliberately in its own group: sharing would let a 06:00 UTC cron cancel a queued command.
 - `issue-ops` ignores `github-actions[bot]` events to avoid reacting to its own comments/auto-close.
 - `pages.yml` regenerates `site.json` at build time and redeploys. Because `GITHUB_TOKEN` commits can't
   trigger a `push` event (GitHub loop-prevention), it **also** listens on `workflow_run: completed` of the

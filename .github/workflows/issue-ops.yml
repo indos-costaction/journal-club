@@ -17,12 +17,17 @@ permissions:
   issues: write
 
 # Queue pushes from this workflow; do NOT cancel queued runs (each carries a distinct
-# user action). This group is a contention/noise optimisation, NOT the correctness
-# mechanism: it demonstrably did not serialise issues #36 and #37 on 2026-07-31 (run
-# 30667267903 started 12 s before run 30667257761 finished). Correctness is the
-# rebase-retry loop plus the post-after-push ordering below.
+# user action). `queue: max` is the load-bearing word: the default is `queue: single`,
+# under which a THIRD run arriving while one is in flight silently CANCELS the queued
+# second — a participant's command vanishing with no comment and no error.
+#
+# This group is a contention/noise optimisation, NOT the correctness mechanism. It
+# demonstrably did not serialise issues #36 and #37 on 2026-07-31 (run 30667267903
+# started 12 s before run 30667257761 finished). Correctness is the rebase-retry loop
+# plus the post-after-push ordering below.
 concurrency:
   group: jc-state-push
+  queue: max
   cancel-in-progress: false
 
 jobs:
