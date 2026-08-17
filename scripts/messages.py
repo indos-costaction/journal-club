@@ -224,9 +224,19 @@ def _form_banner() -> str:
 
 # --- whole comments ---------------------------------------------------------
 def claim_confirmation(claim: dict, pool: dict, outcome, claims: dict) -> str:
-    """Reply to the claim form — the participant's full onboarding."""
+    """Reply to the claim form — the participant's full onboarding.
+
+    The greeting tracks the outcome. A claim form can be answered with a pure refusal:
+    the paper filled up while the form was open, the cap is already spent, or another
+    thread won the same paper in a push race. Greeting all three with "you're in, your
+    reading starts now" directly above "**Not applied:** ❌" makes the reply contradict
+    itself in its first two lines. Spotted on #43 while reproducing issue #40 — the
+    delta was correct by then and the banner above it still was not.
+    """
     who = claim["participant"]
-    parts = [f"👋 @{who} — you're in. **Your reading starts now.**", outcome.delta()]
+    greeting = (f"👋 @{who} — you're in. **Your reading starts now.**" if outcome.ok
+                else f"👋 @{who} — **this didn't go through.** Here's why:")
+    parts = [greeting, outcome.delta()]
     table = holdings_table(claim, pool)
     if table:
         parts += [table + _cap_line(claim, claims), _form_banner(), _next_steps()]

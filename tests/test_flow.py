@@ -501,6 +501,32 @@ class TestLostPushRace(Base):
         shutil.rmtree(self.tmp)
         shutil.copytree(snap, self.tmp)
 
+    def test_the_losing_thread_is_not_greeted_as_a_winner(self):
+        """The delta was already right; the greeting above it was not.
+
+        #43 opened with "you're in. Your reading starts now." and then listed the
+        refusal underneath — the reply contradicting itself in its first two lines.
+        """
+        self.claim_paper(PAPER, issue=self.WINNER)
+        losing = self.claim_paper(PAPER, issue=self.LOSER)["comment"]
+        self.assertNotIn("you're in", losing)
+        self.assertIn("didn't go through", losing)
+
+    def test_the_winning_thread_is_still_welcomed(self):
+        self.assertIn("you're in", self.claim_paper(PAPER, issue=self.WINNER)["comment"])
+
+    def test_a_partial_success_still_counts_as_being_in(self):
+        """One accepted, one refused: they did claim something, so greet them."""
+        self.claim_paper(PAPER, issue=self.WINNER)
+        mixed = issue_ops.handle_event({
+            "event_name": "issues", "action": "opened",
+            "issue": {"number": self.LOSER, "user": {"login": AUTHOR},
+                      "labels": [{"name": "claim"}],
+                      "body": f"{PAPER} EEG-22\n- [x] I consent\nAttributed"},
+        })["comment"]
+        self.assertIn("you're in", mixed)
+        self.assertIn("Not applied", mixed)
+
     def test_the_losing_thread_is_told_it_lost(self):
         origin = self._snapshot()
 
