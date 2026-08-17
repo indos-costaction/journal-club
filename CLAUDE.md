@@ -43,6 +43,12 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
   `issue-ops.yml` ignores by design). `ingest` unpacks a LimeSurvey file archive into the private
   inbox under canonical `claim_id` filenames; `reconcile` reports; `post` comments `/received`.
   It **posts intent and never writes `claims/`** — one writer, or issue-ops would double-apply.
+  Archive members are named `00010_01-pdf_00-<slugified-original-name>.pdf`: flat, zero-padded
+  **response id first**, and the `fu_<random>` on-disk name nowhere to be seen. That prefix is the
+  join key (`find_member`) — matching on the `fu_` name or the original filename resolved 0 of 8
+  real files. Export the responses with **question-code headings**, not question text, or
+  `uploads_from_csv` will refuse. A response whose upload cell is blank carried no file and is
+  counted, not reported per row (`has_file`).
 - `sweep.py` — daily: expire overdue claims (auto-withdraw, no penalty), fire day-9/day-11 reminders,
   refresh `status.json` + `ranking.json`. Reads **absolute timestamps**, so a skipped day self-heals.
   Per-paper `reminded` markers guarantee each nudge fires once.

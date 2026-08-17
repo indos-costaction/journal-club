@@ -292,8 +292,160 @@ class TestGradeGuard(Base):
             grade.grade(ISSUE, PAPER, AXES, ORGANIZER)
 
 
+class TestIngestMatcherRealArchive(unittest.TestCase):
+    """The archive shape LimeSurvey actually produces.
+
+    ``TestIngestMatcher`` below fixtures a ``428628/101/fu_aaa111`` layout that was
+    invented, never observed — and every one of its tests passed while the matcher
+    resolved **0 of 8** files in the real 2026-08-17 export of survey 428628. A
+    fixture that encodes a guess tests the guess.
+
+    Real members look like ``00010_01-pdf_00-<slugified-original-name>.pdf``: a flat
+    archive, zero-padded response id first, and no ``fu_`` name anywhere. The names
+    below copy that shape; the slugs are invented, because a participant's own
+    filenames do not belong in a public repo.
+    """
+
+    MEMBERS = [
+        "00007_01-pdf_00-a-review-of-something.pdf",
+        "00008_02-pdf_00-notes.pdf",
+        "00012_03-pdf_00-notes.pdf",
+        "00013_04-pdf_00-notes.pdf",
+    ]
+
+    def _u(self, **kw):
+        import intake
+        base = dict(issue=9, paper=PAPER, gh=AUTHOR, ref="7",
+                    # LimeSurvey renames on export, so this is in the response and
+                    # nowhere in the archive. Every real upload looks like this.
+                    stored="fu_4xz7rek29uqpjt9", orig="A-Review-Of-Something.pdf")
+        return intake.Upload(**{**base, **kw})
+
+    def test_the_response_id_prefix_resolves_every_file(self):
+        import intake
+        for ref, expected in (("7", self.MEMBERS[0]), ("8", self.MEMBERS[1]),
+                              ("12", self.MEMBERS[2]), ("13", self.MEMBERS[3])):
+            with self.subTest(ref=ref):
+                u = self._u(ref=ref, orig="Notes.pdf")
+                self.assertEqual(intake.find_member(self.MEMBERS, u)[0], expected)
+
+    def test_an_absent_stored_name_does_not_block_the_match(self):
+        """The 0-of-8 case: rule 1 cannot fire, so rule 2 has to carry it."""
+        import intake
+        u = self._u(stored="fu_nowhere_in_this_archive")
+        self.assertEqual(intake.find_member(self.MEMBERS, u)[0], self.MEMBERS[0])
+
+    def test_zero_padding_is_not_part_of_the_key(self):
+        """The width is LimeSurvey's business; ids are compared as numbers."""
+        import intake
+        self.assertEqual(intake._member_response_id("00008_02-pdf_00-notes.pdf"), 8)
+        self.assertEqual(intake._member_response_id("8_02-pdf_00-notes.pdf"), 8)
+        self.assertIsNone(intake._member_response_id("notes.pdf"))
+
+    def test_response_7_is_not_confused_with_17_or_70(self):
+        import intake
+        members = ["00007_01-pdf_00-x.pdf", "00017_02-pdf_00-x.pdf",
+                   "00070_03-pdf_00-x.pdf"]
+        self.assertEqual(intake.find_member(members, self._u(ref="7", orig=""))[0],
+                         "00007_01-pdf_00-x.pdf")
+
+    def test_repeat_uploads_of_one_filename_resolve_by_id(self):
+        """Three responses, one original filename — exactly the real export's shape.
+
+        The name is useless here; the id is what separates them.
+        """
+        import intake
+        got = [intake.find_member(self.MEMBERS, self._u(ref=r, orig="Notes.pdf"))[0]
+               for r in ("8", "12", "13")]
+        self.assertEqual(got, self.MEMBERS[1:])
+        self.assertEqual(len(set(got)), 3, "two responses were handed the same file")
+
+    def test_without_a_response_id_a_shared_filename_is_refused(self):
+        import intake
+        member, why = intake.find_member(self.MEMBERS, self._u(ref="", stored="",
+                                                               orig="Notes.pdf"))
+        self.assertIsNone(member)
+        self.assertIn("ambiguous", why)
+
+    def test_the_filename_fallback_is_case_insensitive(self):
+        """LimeSurvey lowercases the slug; the response carries the original casing."""
+        import intake
+        u = self._u(ref="", stored="", orig="A-Review-Of-Something.pdf")
+        self.assertEqual(intake.find_member(self.MEMBERS, u)[0], self.MEMBERS[0])
+
+    def test_a_missing_file_names_the_response_id(self):
+        """The old message said only stored= and name=, both of which look like junk
+        to a reader — the id is the thing an organizer can actually look up."""
+        import intake
+        member, why = intake.find_member(self.MEMBERS, self._u(ref="99", orig="gone.pdf"))
+        self.assertIsNone(member)
+        self.assertIn("no archive file matches", why)
+        self.assertIn("99", why)
+
+    def test_slug_lowercases_and_leaves_punctuation_alone(self):
+        import intake
+        self.assertEqual(intake._slug("The-PREP-pipeline.standardized-EEG.pdf"),
+                         "the-prep-pipeline.standardized-eeg.pdf")
+        self.assertEqual(intake._slug("Pipeline-(HAPPE)-Data.pdf"),
+                         "pipeline-(happe)-data.pdf")
+        self.assertEqual(intake._slug("  my review.pdf "), "my-review.pdf")
+
+
+class TestResponsesWithoutAFile(unittest.TestCase):
+    """A response can reach the form and carry no file. It is not a lost upload.
+
+    ~55 such rows came from one participant's 12-13 Aug attempts. Treated as uploads
+    they became "no archive file matches this response" a line at a time and buried
+    the five real ones under a wall of false alarms.
+    """
+
+    def _u(self, ref, at, **kw):
+        import intake
+        base = dict(issue=9, paper=PAPER, gh=AUTHOR, ref=ref, submitted_at=at,
+                    stored="", orig="")
+        return intake.Upload(**{**base, **kw})
+
+    def test_a_blank_upload_cell_is_not_an_upload(self):
+        import intake
+        self.assertFalse(intake.has_file(self._u("1", "2026-08-12 10:00")))
+        self.assertTrue(intake.has_file(
+            self._u("2", "2026-08-12 10:00", stored="fu_abc")))
+        self.assertTrue(intake.has_file(
+            self._u("3", "2026-08-12 10:00", orig="review.pdf")))
+
+    def test_a_later_empty_attempt_cannot_discard_an_earlier_real_upload(self):
+        """The ordering that makes filtering-before-latest_per_claim necessary.
+
+        Someone uploads successfully, then reopens the form and abandons it. Both are
+        responses on the same claim, and the abandoned one is newer — so if it is still
+        in the list when the tiebreak runs, it wins and the real review is dropped.
+        """
+        import intake
+        good = self._u("10", "2026-08-12 10:00", stored="fu_real", orig="review.pdf")
+        empty = self._u("11", "2026-08-13 09:00")
+
+        naive = intake.latest_per_claim([good, empty])
+        self.assertEqual(naive, [empty], "precondition: the empty attempt is newer")
+
+        filtered = intake.latest_per_claim([u for u in (good, empty) if intake.has_file(u)])
+        self.assertEqual(filtered, [good])
+
+    def test_a_later_real_upload_still_wins(self):
+        import intake
+        first = self._u("10", "2026-08-12 10:00", stored="fu_1", orig="a.pdf")
+        second = self._u("11", "2026-08-13 09:00", stored="fu_2", orig="b.pdf")
+        kept = intake.latest_per_claim([u for u in (first, second) if intake.has_file(u)])
+        self.assertEqual(kept, [second])
+
+
 class TestIngestMatcher(unittest.TestCase):
-    """`ingest` must never hand one participant's file to another."""
+    """`ingest` must never hand one participant's file to another.
+
+    These fixture a ``fu_``-in-the-path layout that the 2026-08 export does not
+    produce (see ``TestIngestMatcherRealArchive``). Kept because rule 1 is still the
+    strongest key *if* an export ever carries it, and because they pin the
+    never-guess-on-ambiguity contract — but they are not evidence the matcher works.
+    """
 
     def _u(self, **kw):
         import intake
