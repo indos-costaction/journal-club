@@ -20,6 +20,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -464,6 +465,34 @@ class TestConfirmSaysWhatItAttests(Base):
         self.assertEqual(catalogue.count("without AI assistance**"), 1)
         self.assertNotIn("without AI assistance", Path(messages.__file__).read_text())
         self.assertNotIn("def confirm_request", Path(messages.__file__).read_text())
+
+
+class TestRuntimeFloor(unittest.TestCase):
+    """The repo pins Python 3.10; a developer's local interpreter usually is not.
+
+    PEP 701 made `f"{f("x")}"` — the same quote nested inside an f-string expression —
+    legal in 3.12. Before that it is a SyntaxError, so code written on a modern
+    interpreter imports fine locally and fails to parse in CI. That happened: the whole
+    suite passed on 3.13 and CI could not import `messages` at all.
+
+    CI is the real guard, but a red run after a push is a slow way to learn it. This
+    catches the one construct that bit, on any interpreter.
+    """
+
+    NESTED_QUOTE = re.compile(r'''f"[^"\n]*\{[^}\n]*"|f'[^'\n]*\{[^}\n]*' ''', re.VERBOSE)
+
+    def test_no_f_string_nests_its_own_quote(self):
+        for path in sorted((Path(__file__).resolve().parent.parent / "scripts").glob("*.py")):
+            for i, line in enumerate(path.read_text().splitlines(), 1):
+                with self.subTest(file=path.name, line=i):
+                    self.assertIsNone(self.NESTED_QUOTE.search(line),
+                                      f"{path.name}:{i} needs Python 3.12+ to parse; "
+                                      f"bind the value to a local first")
+
+    def test_the_workflows_still_pin_the_floor(self):
+        """If CI moves off 3.10 this test's premise changes, deliberately."""
+        wf = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+        self.assertIn("python-version: '3.10'", (wf / "tests.yml").read_text())
 
 
 class TestCatalogue(unittest.TestCase):

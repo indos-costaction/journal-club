@@ -112,15 +112,20 @@ def holdings_table(claim: dict, pool: dict) -> str:
         if rec["state"] not in state.IN_FLIGHT:
             continue
         if rec["state"] == "submitted":
+            # The catalogue lookups are bound first, not inlined into the f-string:
+            # nesting the same quote inside an f-string expression is a syntax error
+            # before Python 3.12 (PEP 701) and this repo pins 3.10.
+            nxt = prose.t("holdings.next_confirmed")
             rows.append(f"| {_paper_ref(pool, pid)} | {_doi_cell(pool, pid)} | — "
-                        f"| {prose.t("holdings.next_confirmed")} |")
+                        f"| {nxt} |")
             continue
         if rec["state"] == "pending":
             # No due date: the clock stopped when we received the file. Saying "—" and
             # naming the one action left is the whole message for this row.
+            stopped = prose.t("holdings.clock_stopped")
+            nxt = prose.t("holdings.next_sign_off", pid=pid)
             rows.append(f"| {_paper_ref(pool, pid)} | {_doi_cell(pool, pid)} "
-                        f"| {prose.t("holdings.clock_stopped")} "
-                        f"| {prose.t("holdings.next_sign_off", pid=pid)} |")
+                        f"| {stopped} | {nxt} |")
             continue
         due = rec["due_at"][:10]
         due_cell = f"**{due}**" + (" · _extended_" if rec.get("extended") else "")
