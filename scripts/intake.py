@@ -382,7 +382,14 @@ def _gather(args) -> tuple[list[Upload], list[str]]:
 
     refs: dict[tuple, str | None] = {}
     if args.map:
-        responses = latest_per_claim(uploads_from_csv(Path(args.map)))
+        # has_file for the same reason cmd_ingest uses it, and it matters more here:
+        # this ref is written into the claim record by /received and is the permanent
+        # pointer to the store of record. A file-less response winning the tiebreak
+        # would aim it at a row that never carried a review. Currently latent — all 161
+        # such rows in the 2026-08 export are unsubmitted, so they carry a blank
+        # submitdate and sort last — which is luck, not a property worth relying on.
+        responses = latest_per_claim(
+            [u for u in uploads_from_csv(Path(args.map)) if has_file(u)])
         refs = {(u.issue, u.paper): u.ref for u in responses}
         have = {(u.issue, u.paper) for u in uploads}
         pending = [u for u in responses if (u.issue, u.paper) not in have]
