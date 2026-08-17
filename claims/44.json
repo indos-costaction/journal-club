@@ -8,13 +8,20 @@
   },
   "papers": {
     "CROSS-27": {
-      "state": "pending",
+      "state": "active",
       "claimed_at": "2026-08-17T19:06:35Z",
-      "due_at": "2026-08-29T19:06:35Z",
+      "due_at": "2026-08-29T19:07:34Z",
       "extended": false,
-      "submission_ref": "9001",
+      "submission_ref": null,
       "reminded": [],
-      "pending_since": "2026-08-17T19:07:39Z"
+      "declined": [
+        {
+          "ref": "9001",
+          "at": "2026-08-17T19:08:38Z",
+          "by": "oesteban",
+          "reason_given": true
+        }
+      ]
     }
   }
 }
