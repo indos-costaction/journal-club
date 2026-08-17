@@ -331,7 +331,8 @@ def upload_was_late(u: Upload, rec: dict) -> bool | None:
 # --- the reconcile core (pure) ---------------------------------------------
 def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
     """Pure: uploads + claims -> buckets. The feed-agnostic heart of intake."""
-    matched, to_post, late, undated, awaiting_confirm, unmatchable = [], [], [], [], [], []
+    matched, to_post, late, undated = [], [], [], []
+    declined, awaiting_confirm, unmatchable = [], [], []
     seen: set[tuple] = set()
 
     for u in uploads:
@@ -349,6 +350,14 @@ def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
             continue
         seen.add((u.issue, u.paper))
         st = rec["state"]
+        if u.ref and u.ref in state.declined_refs(rec):
+            # The claimant refused this exact response. Without this the claim is back
+            # at `active`, the PDF is still in the inbox, and the next routine `post`
+            # re-attaches the very file they declined and asks them to confirm it.
+            # Its own bucket, not `unmatchable`: this is a correct refusal, and printing
+            # it under ❌ beside genuine errors trains an organizer to ignore both.
+            declined.append(u)
+            continue
         if st in ("active", "expired"):
             # Decided on the upload's own timestamp, never on `st` — see
             # upload_was_late. An expired claim whose file arrived in time is an
@@ -375,7 +384,7 @@ def reconcile(uploads: list[Upload], claims: dict) -> dict[str, list]:
                 if rec["state"] == "active" and (issue, pid) not in seen]
 
     return {"matched": matched, "to_post": to_post, "late": late, "undated": undated,
-            "awaiting_confirm": awaiting_confirm,
+            "declined": declined, "awaiting_confirm": awaiting_confirm,
             "awaiting": sorted(awaiting), "unmatchable": unmatchable}
 
 
@@ -402,6 +411,12 @@ def _report(b: dict, bad: list[str]) -> None:
         print("     The claim expired and the inbox filename carries no date, so whether")
         print("     these were on time cannot be answered from here. Re-run with --map.")
         for u in b["undated"]:
+            _line(u)
+    if b["declined"]:
+        print(f"\n🚫 declined by the claimant  {len(b['declined'])}")
+        print("     They will not sign these off. Not re-posted, and a new upload gets a")
+        print("     new id. Read the thread for why, then: python scripts/intake.py quarantine")
+        for u in b["declined"]:
             _line(u)
     if b["awaiting_confirm"]:
         print(f"\n🖊️  awaiting their /confirm  {len(b['awaiting_confirm'])}")
@@ -596,6 +611,58 @@ def cmd_post(args) -> None:
               "Re-running posts nothing.")
 
 
+def cmd_quarantine(args) -> None:
+    """Move declined uploads out of the working inbox into ``inbox/declined/``.
+
+    A claimant who says "that upload wasn't me" has asked us to stop holding a file, and
+    leaving it in the working inbox — where the next `ingest` and every annotation run
+    still see it — is not an answer to that. This does not delete anything: the file
+    moves, so an organizer can still look at it while investigating.
+
+    **LimeSurvey is the store of record**, so this does not remove the upload from the
+    survey. That is a manual step in the admin UI, and the report says so, because a
+    quarantine that silently leaves the original in place is worse than none.
+    """
+    inbox = _resolve_inbox(args.inbox)
+    uploads, _bad = uploads_from_inbox(inbox)
+    claims = state.load_claims()
+    dest = inbox / "declined"
+
+    moved = 0
+    for u in uploads:
+        rec = (claims.get(u.issue) or {}).get("papers", {}).get(u.paper)
+        if not rec:
+            continue
+        refs = state.declined_refs(rec)
+        if not refs:
+            continue
+        # The inbox filename is the claim id, not the response id, so the file on disk
+        # is only *known* to be the declined one when nothing newer has replaced it —
+        # i.e. the claim currently holds no submission_ref.
+        if rec.get("submission_ref"):
+            print(f"  == {u.paper} · #{u.issue}: declined {sorted(refs)}, but a newer "
+                  f"upload (ref {rec['submission_ref']}) is what's in the inbox — left alone")
+            continue
+        src = inbox / f"{u.claim_id}.pdf"
+        if not src.exists():
+            continue
+        if args.dry_run:
+            print(f"  -> {src.name}  =>  declined/{src.name}   (refs {sorted(refs)})")
+        else:
+            dest.mkdir(exist_ok=True)
+            src.rename(dest / src.name)
+            print(f"  ok {src.name} -> declined/   (refs {sorted(refs)})")
+        moved += 1
+
+    if not moved:
+        print("nothing to quarantine.")
+        return
+    print(f"\n{'would move' if args.dry_run else 'moved'} {moved} file(s).")
+    if not args.dry_run:
+        print("The LimeSurvey responses themselves still exist — delete them in the "
+              "admin UI if the claimant asked you to.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -619,6 +686,10 @@ def main() -> None:
     p.add_argument("--map", help="LimeSurvey CSV export — supplies submission_ref")
     p.add_argument("--dry-run", action="store_true", help="print the comments, send nothing")
     p.set_defaults(func=cmd_post)
+
+    q = sub.add_parser("quarantine", help="move declined uploads to inbox/declined/")
+    q.add_argument("--dry-run", action="store_true", help="print the plan, move nothing")
+    q.set_defaults(func=cmd_quarantine)
 
     args = ap.parse_args()
     args.func(args)

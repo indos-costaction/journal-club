@@ -54,10 +54,28 @@ while you get to it.
 |---|---|
 | `/claim EEG-05` | claim another paper (if under your 3-claim cap) |
 | `/confirm EEG-03` | sign off your upload — **only you can send this one** |
+| `/decline EEG-03 <why>` | **won't** sign off an upload — see below |
 | `/withdraw EEG-03` | return a paper to the pool — no penalty |
 | `/extend EEG-03` | one-time **+7 days** on the deadline |
 
 Organizers can help with any of these on your behalf — except `/confirm`, which is yours alone.
+
+### If you don't want to sign an upload off
+
+Two situations, one command. Either **that upload wasn't you** — the form is open to anyone
+with the link, so a file can land against your claim that you never sent — or it *was* you and
+you've changed your mind about some comments and want to send a new version.
+
+Reply **`/decline EEG-03`** with a line saying which, e.g.
+
+> `/decline EEG-03` that wasn't my upload
+
+The paper stays yours. You get back the time that was still on your clock when the file
+arrived (at least 3 days), the declined file is never graded and never re-attached, and an
+organizer picks it up from there. Say *why* if you can — "not mine" and "I want to redo it"
+need very different things from us, and the command alone can't tell us which.
+
+`/withdraw` is the different one: that gives the paper up entirely.
 
 ## Reminders
 The system @-mentions you **3 days** and **1 day** before each deadline (GitHub emails you), and each

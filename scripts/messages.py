@@ -172,11 +172,17 @@ def _cap_line(claim: dict, claims: dict) -> str:
             f"before claiming another{tail}.")
 
 
-def _commands(extra_claim: bool = True) -> str:
+def _commands(extra_claim: bool = True, pending: bool = False) -> str:
     rows = [
         ("`/extend <ID>`", f"One-time **+{params.EXTENSION_DAYS} days**. Once per paper."),
         ("`/withdraw <ID>`", "Back to the pool. **No penalty** — far better than a rushed review."),
     ]
+    if pending:
+        # Shown only while something is actually awaiting sign-off. `/decline` is
+        # meaningless otherwise, and a permanent row inviting people to refuse an upload
+        # they haven't made would be noise on every reply the bot posts.
+        rows.insert(0, ("`/decline <ID> <why>`",
+                        "Won't sign off an upload — not yours, or you want to replace it."))
     if extra_claim:
         rows.append(("`/claim <ID>`", "Take another paper, if you're under the cap."))
     body = "\n".join(f"| {c} | {d} |" for c, d in rows)
@@ -227,7 +233,24 @@ def _confirm_attestation(pid: str) -> str:
             f"with the link — it can't tell who filled it in. Your reply here is signed by "
             f"your GitHub account, so it's what actually puts your name on the review and "
             f"on the no-AI declaration.\n\n"
-            f"Didn't upload this? **Don't confirm it** — say so here and we'll drop it.")
+            f"Didn't upload this, or want to replace it? **Don't confirm it** — reply "
+            f"**`/decline {pid}`** with a line saying why, and we won't grade it.")
+
+
+def declined_note(reason_given: bool) -> str:
+    """Appended when a claimant refuses an upload.
+
+    Alleges nothing and asks nothing of them beyond the reason. "That wasn't me" and
+    "that was me and I want to redo it" arrive through the same command, and the bot
+    cannot tell which — so it must not imply either. An organizer reads the thread.
+    """
+    ask = ("" if reason_given else
+           "\n\nCould you add a line here about what happened? Anything is useful — "
+           "\"that wasn't my upload\" and \"I want to redo some comments\" need very "
+           "different things from us, and we can't tell which from the command alone.")
+    return (f"An organizer will pick this up. Nothing counts against you, the paper is "
+            f"still yours, and the file you declined won't be graded or re-attached — "
+            f"a new upload gets a new id.{ask}")
 
 
 def _prose_list(items: list[str]) -> str:
@@ -271,7 +294,9 @@ def claim_confirmation(claim: dict, pool: dict, outcome, claims: dict) -> str:
 
 
 def command_ack(claim: dict, pool: dict, outcome, claims: dict,
-                confirm_needed: list[str] | tuple[str, ...] = ()) -> str:
+                confirm_needed: list[str] | tuple[str, ...] = (),
+                declined: list[str] | tuple[str, ...] = (),
+                reason_given: bool = False) -> str:
     """Reply to any command comment: delta + where you stand.
 
     ``confirm_needed`` names the papers this command just moved into ``pending`` — i.e.
@@ -282,6 +307,8 @@ def command_ack(claim: dict, pool: dict, outcome, claims: dict,
     who = claim["participant"]
     parts = [f"@{who} —", outcome.delta()]
     parts += [_confirm_attestation(pid) for pid in confirm_needed]
+    if declined:
+        parts.append(declined_note(reason_given))
     table = holdings_table(claim, pool)
     if table:
         parts += [f"**On this thread you hold:**\n\n{table}" + _cap_line(claim, claims),
@@ -289,7 +316,9 @@ def command_ack(claim: dict, pool: dict, outcome, claims: dict,
     else:
         parts.append("You're not holding any papers right now — "
                      f"[browse the pool]({params.SITE_URL}#papers) whenever you like.")
-    parts.append(_commands())
+    # `/decline` is offered only while a paper is actually awaiting sign-off.
+    parts.append(_commands(pending=any(r["state"] == "pending"
+                                       for r in claim["papers"].values())))
     return "\n\n".join(p for p in parts if p.strip())
 
 

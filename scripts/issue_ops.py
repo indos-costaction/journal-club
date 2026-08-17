@@ -50,15 +50,27 @@ import state
 ORGANIZERS = set(filter(None, os.environ.get("ORGANIZERS", "").lower().split(",")))
 
 ID_RE = re.compile(r"\b([A-Za-z]+-R?\d+)\b")
-CMD_RE = re.compile(r"/(claim|withdraw|submit|received|confirm|reject|extend)\s+([^\n]*)",
-                    re.IGNORECASE)
+CMD_RE = re.compile(
+    r"/(claim|withdraw|submit|received|confirm|reject|extend|decline|disown|retract)"
+    r"\s+([^\n]*)", re.IGNORECASE)
 # `/received EEG-15 ref:12345` — the LimeSurvey response id, our submission provenance.
 REF_RE = re.compile(r"\bref:([A-Za-z0-9_-]+)", re.IGNORECASE)
 
 # `/submit` was the pre-handshake name for `/received`. Kept as an undocumented alias
 # because an unrecognised command is a *silent* no-op (see the `not commands` return
 # below) — a stale intake.py in a shell history would otherwise fail without a sound.
-ALIASES = {"submit": "received"}
+#
+# `disown` / `retract` are documented synonyms of `decline`, registered for the same
+# reason and more urgently: someone refusing an upload they say isn't theirs is the last
+# person who should be met with silence because they guessed a different word.
+ALIASES = {"submit": "received", "disown": "decline", "retract": "decline"}
+
+# Commands whose trailing text is prose, not arguments. For these the paper ids are the
+# leading tokens only and everything from the first non-id word onward is the reason —
+# see `_split_reason`. Without this `/decline EEG-15 I'll redo my figure-3 notes` scrapes
+# `FIGURE-3` as a paper id (ID_RE matches any letters-digits token) and answers a
+# perfectly clear sentence with "❌ `FIGURE-3` — you have no active claim on this paper".
+PROSE_COMMANDS = {"decline"}
 
 # Who may run each command. Roles are not exclusive: an organizer acting on their own
 # claim thread holds both, so they can /received then /confirm their own upload —
@@ -72,6 +84,11 @@ COMMAND_ACL = {
     "withdraw": {"author", "organizer"},
     "extend":   {"author", "organizer"},
     "confirm":  {"author"},        # NOT organizer — deliberately un-proxyable
+    # `decline` is the other answer to the same question, and unlike `confirm` it IS
+    # proxyable. Not an oversight: proxying an affirmation forges a signature, proxying a
+    # refusal forges nothing — and the person saying "that upload wasn't me" is quite
+    # likely to say it by email rather than in a comment.
+    "decline":  {"author", "organizer"},
     "received": {"organizer"},
     "reject":   {"organizer"},
 }
@@ -79,6 +96,10 @@ COMMAND_ACL = {
 # What marks a thread as a claim. The claim form applies it at creation time, so it
 # is present on the `opened` payload; issue_ops keys off it rather than off the body.
 CLAIM_LABEL = "claim"
+
+# Applied when a claimant declines an upload. Must exist in the repo — `announce.py`
+# treats a failed label as a warning, not an error, so a missing one fails silently.
+NEEDS_ORGANIZER_LABEL = "needs-organizer"
 
 
 def _ids(segment: str) -> list[str]:
@@ -99,12 +120,34 @@ def _split_ref(segment: str) -> tuple[list[str], str | None]:
     return _ids(REF_RE.sub(" ", segment)), (m.group(1) if m else None)
 
 
-def _parse(body: str) -> list[tuple[str, list[str], str | None]]:
-    """Every command in a body, as (canonical_name, paper_ids, ref)."""
+def _split_reason(segment: str) -> tuple[list[str], str]:
+    """Leading paper ids, then everything after the first non-id word as prose.
+
+    Only for PROSE_COMMANDS. ``_ids`` matches any letters-digits token anywhere in the
+    segment, which is right for an argument list and wrong for a sentence: `figure-3`,
+    `GPT-4` and `Table-2` all become paper ids, and the reply then rejects them by name
+    under a "Not applied ❌" heading. Consuming ids only while they lead means the prose
+    is never scanned at all.
+    """
+    tokens = segment.split()
+    n = 0
+    while n < len(tokens) and ID_RE.fullmatch(tokens[n].strip(",;:.`\"'")):
+        n += 1
+    return ([t.strip(",;:.`\"'").upper() for t in tokens[:n]],
+            " ".join(tokens[n:]).strip())
+
+
+def _parse(body: str) -> list[tuple[str, list[str], str | None, str]]:
+    """Every command in a body, as (canonical_name, paper_ids, ref, reason)."""
     out = []
     for m in CMD_RE.finditer(body):
-        name = m.group(1).lower()
-        out.append((ALIASES.get(name, name), *_split_ref(m.group(2))))
+        name = ALIASES.get(m.group(1).lower(), m.group(1).lower())
+        if name in PROSE_COMMANDS:
+            ids, reason = _split_reason(m.group(2))
+            out.append((name, ids, None, reason))
+        else:
+            ids, ref = _split_ref(m.group(2))
+            out.append((name, ids, ref, ""))
     return out
 
 
@@ -163,7 +206,7 @@ def handle_event(event: dict) -> dict:
         # pool IDs and was treated as a claim, so a bug report that merely quoted
         # "FMRI-01" was answered with a consent rejection (#26).
         if CLAIM_LABEL in _labels(event["issue"]):
-            commands = [("claim", _ids(body), None)]
+            commands = [("claim", _ids(body), None, "")]
         elif CMD_RE.search(body):
             # Hand-filed without the form: an explicit /claim is unambiguous intent.
             commands = _parse(body)
@@ -185,7 +228,7 @@ def handle_event(event: dict) -> dict:
     else:
         return {"comment": "", "add_labels": [], "assignees": [], "issue": None, "changed": False}
 
-    if not commands or all(not ids for _c, ids, _r in commands):
+    if not commands or all(not ids for _c, ids, _r, _why in commands):
         return {"comment": "", "add_labels": [], "assignees": [], "issue": issue, "changed": False}
 
     # Identity barrier, tier 1 (coarse): an actor with no role at all gets nothing. This
@@ -204,7 +247,7 @@ def handle_event(event: dict) -> dict:
     claims[issue] = claim
 
     # GDPR gate: a first claim requires consent (the form makes the box required)
-    is_claim = any(c == "claim" for c, _ids_, _ref in commands)
+    is_claim = any(c == "claim" for c, _ids_, _ref, _why in commands)
     if is_claim and not claim["consent"]["gdpr"]:
         return {"comment": messages.consent_missing(),
                 "add_labels": [], "assignees": [], "issue": issue, "changed": False}
@@ -213,8 +256,10 @@ def handle_event(event: dict) -> dict:
     out = state.Outcome()
     accepted_modalities: set[str] = set()
     confirm_needed: list[str] = []   # papers this command just put in the /confirm queue
+    declined_now: list[str] = []     # papers whose upload the claimant just refused
+    declined_reason = ""             # ...and whether they said why
     attempted = False  # a state-changing command with ids was processed
-    for cmd, ids, ref in commands:
+    for cmd, ids, ref, reason in commands:
         if not ids:
             continue
         # Identity barrier, tier 2 (per command). Rendered through the normal delta path
@@ -242,6 +287,17 @@ def handle_event(event: dict) -> dict:
             attempted = True
         elif cmd == "confirm":
             r = state.apply_confirm(claim, ids, now)
+            attempted = True
+        elif cmd == "decline":
+            # Counted before/after rather than read off the outcome prose: only a
+            # decline that actually applied should summon an organizer. A refusal
+            # ("nothing to decline") must not, and a repeat is a no-op that was already
+            # flagged the first time.
+            before = {p: len(r_.get("declined", [])) for p, r_ in claim["papers"].items()}
+            r = state.apply_decline(claim, ids, now, actor, reason_given=bool(reason))
+            declined_now += [p for p, r_ in claim["papers"].items()
+                             if len(r_.get("declined", [])) > before.get(p, 0)]
+            declined_reason = declined_reason or reason
             attempted = True
         elif cmd == "reject":
             r = state.apply_reject(claim, ids, now, actor)
@@ -279,12 +335,21 @@ def handle_event(event: dict) -> dict:
     close_issue = attempted and waiting_on_them == 0
 
     add_labels = ["claim"] + [f"mod:{m}" for m in sorted(accepted_modalities)]
+    if declined_now:
+        # The only thing in the system that asks an organizer to look at a thread.
+        # Add-only: nothing here can take it off again, so an organizer clears it by
+        # hand once they have dealt with the refusal. The label must exist in the repo
+        # or `gh` degrades to a ::warning:: and the signal silently never appears —
+        # see CLAUDE.md § Deployment requirements.
+        add_labels.append(NEEDS_ORGANIZER_LABEL)
     return {
         # `claims` was reloaded above, so the cap line sees this participant's other
         # threads too — the cap is per participant, not per thread
         "comment": (messages.claim_confirmation(claim, pool, out, claims) if is_form
                     else messages.command_ack(claim, pool, out, claims,
-                                              confirm_needed=confirm_needed)),
+                                              confirm_needed=confirm_needed,
+                                              declined=declined_now,
+                                              reason_given=bool(declined_reason))),
         "add_labels": add_labels,
         "assignees": [author],
         "issue": issue,

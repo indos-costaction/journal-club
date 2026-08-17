@@ -32,6 +32,17 @@ SUBMITDATE_GRACE_HOURS = 3
 # slot. A genuinely abandoned upload is an organizer's `/reject`, not a timer's.
 CONFIRM_NUDGE_DAYS = (3, 7)
 
+# Floor on the deadline a paper gets back when its claimant `/decline`s the upload.
+# Declining returns the paper to `active` with **the time that was still on its clock
+# when the upload arrived** — reaching `pending` stopped that clock, so this gives back
+# what it stopped at rather than granting a new window. Someone who uploaded nine days
+# early gets nine days; someone who uploaded an hour before the deadline would get an
+# hour, which is no use to anyone redoing a review, hence the floor.
+#
+# It is a floor and not a fresh window on purpose: a fresh window would reward uploading
+# at the last minute exactly as much as uploading early. WG3-ratifiable.
+DECLINE_FLOOR_DAYS = 3
+
 # --- Submission intake (submission-form.md) --------------------------------
 SITE_URL = "https://indos-costaction.github.io/journal-club/"
 

@@ -327,6 +327,13 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
         if rec["state"] not in RECEIVABLE:
             out.reject(f"`{pid}` — can't record an upload against a `{rec['state']}` claim.")
             continue
+        if ref and ref in declined_refs(rec):
+            # The claimant refused this exact file. `intake.reconcile` keeps it out of
+            # `to_post`, so reaching here means a hand-typed /received — the one path
+            # that would otherwise walk a disavowal back and ask them to confirm it again.
+            out.reject(f"`{pid}` — response `{ref}` was declined by the claimant; "
+                       f"it can't be recorded. A new upload gets a new id.")
+            continue
         if rec["state"] == "pending" and ref and rec.get("submission_ref") == ref:
             # Same LimeSurvey response id = the same file seen twice (a workflow re-run,
             # a redelivered webhook, an organizer pasting the command again). Restamping
@@ -390,6 +397,86 @@ def apply_confirm(claim: dict, ids: list[str], now: datetime) -> Outcome:
         rec["confirmed_at"] = iso(now)
         out.accept(f"`{pid}` confirmed — thank you. It's with the organizers for grading.")
     return out
+
+
+def declined_refs(rec: dict) -> set[str]:
+    """Every LimeSurvey response id the claimant has refused for this paper.
+
+    Read by ``apply_receive`` and by ``intake.reconcile``. Both need it: without the
+    second, the next routine ``intake.py post`` re-posts `/received` for the very file
+    that was refused, and without the first a hand-typed `/received` does the same.
+    """
+    return {d["ref"] for d in rec.get("declined", []) if d.get("ref")}
+
+
+def apply_decline(claim: dict, ids: list[str], now: datetime, by: str,
+                  reason_given: bool = False) -> Outcome:
+    """The claimant refuses to sign off an upload — the other answer to `/confirm`.
+
+    Two shapes, deliberately served by one command because the mechanics are identical
+    and only the prose differs: *"that wasn't me"* (the upload form is open-access and
+    its link is public, so someone else's file can land against your claim) and *"that
+    was me, but I want to replace it"*.
+
+    The paper goes back to **`active`**, not to a state of its own. `active` keeps the
+    slot, keeps the row in the holdings table, and keeps the thread open — a new state
+    outside IN_FLIGHT would silently do the opposite of all three, and the claimant has
+    not given the paper up.
+
+    The deadline is restored to what was still on the clock when the upload arrived
+    (see ``params.DECLINE_FLOOR_DAYS``). Without that, a claim declined after its
+    original due date is back at `active` with a past deadline and the next 06:00 sweep
+    expires it the same morning — with no warning, because the pre-deadline nudges have
+    already fired.
+
+    The **reason text is not stored here.** Only whether one was given. It lives in the
+    participant's own public comment, which they can edit or delete; copying it into a
+    committed JSON turns a retraction into a git-history rewrite.
+    """
+    out = Outcome()
+    for raw in ids:
+        pid = raw.strip().upper()
+        rec = claim["papers"].get(pid)
+        if not rec:
+            out.reject(f"`{pid}` — this thread holds no claim on that paper.")
+            continue
+        ref = rec.get("submission_ref")
+        if rec["state"] == "active" and ref is None and rec.get("declined"):
+            # Already declined. Accept as a no-op rather than reject: the rebase-retry
+            # loop re-runs this script, and a second stamp would make the claim file
+            # differ on a re-apply. Same shape as apply_confirm's already-`submitted`.
+            out.accept(f"`{pid}` — already declined; nothing more to do. "
+                       f"Upload again whenever you're ready.")
+            continue
+        if rec["state"] == "submitted":
+            out.reject(f"`{pid}` — you already confirmed this one, so it's with the "
+                       f"organizers. Ask them here and they can pull it back.")
+            continue
+        if rec["state"] != "pending":
+            out.reject(f"`{pid}` — nothing to decline; we're not holding an upload "
+                       f"for it.")
+            continue
+
+        rec["declined"] = rec.get("declined", []) + [
+            {"ref": ref, "at": iso(now), "by": by, "reason_given": bool(reason_given)}]
+        rec["state"] = "active"
+        rec["submission_ref"] = None
+        rec["due_at"] = iso(_restored_due(rec, now))
+        # the old deadline's nudges already fired; re-arm them against the new one
+        rec["reminded"] = []
+        rec.pop("pending_since", None)
+        out.accept(f"`{pid}` — understood, we won't grade that upload. The paper is "
+                   f"still yours, due **{rec['due_at'][:10]}**.")
+    return out
+
+
+def _restored_due(rec: dict, now: datetime) -> datetime:
+    """Give back the time the clock was stopped at, never less than the floor."""
+    floor = now + timedelta(days=params.DECLINE_FLOOR_DAYS)
+    since, due = rec.get("pending_since"), rec.get("due_at")
+    if not since or not due:
+        return floor
+    return max(floor, now + (parse(due) - parse(since)))
 
 
 def apply_reject(claim: dict, ids: list[str], now: datetime, by: str) -> Outcome:

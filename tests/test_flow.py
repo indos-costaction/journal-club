@@ -460,6 +460,204 @@ class TestConfirmSaysWhatItAttests(Base):
         self.assertNotIn("def confirm_request", src)
 
 
+class TestDecline(Base):
+    """`/decline` — the other answer to `/confirm`.
+
+    A `pending` upload had exactly one exit the claimant controlled, and `pending` never
+    expires, so someone holding a file that wasn't theirs held a slot indefinitely with
+    only prose to appeal to. Two shapes, one command: "that wasn't me" and "that was me
+    but I want to replace it".
+    """
+
+    def pending(self, ref="11"):
+        self.claim_paper()
+        self.comment(f"/received {PAPER} ref:{ref}", actor=ORGANIZER)
+        return self.rec()
+
+    def test_it_returns_the_paper_and_keeps_the_claim(self):
+        self.pending()
+        out = self.comment(f"/decline {PAPER} that wasn't my upload")
+        rec = self.rec()
+        self.assertEqual(rec["state"], "active")
+        self.assertIsNone(rec["submission_ref"])
+        self.assertEqual([d["ref"] for d in rec["declined"]], ["11"])
+        self.assertTrue(rec["declined"][0]["reason_given"])
+        self.assertFalse(out["close"], "the paper is still theirs; don't close the thread")
+
+    def test_the_reason_text_is_never_written_to_the_claim_file(self):
+        """It lives in their own comment, which they can edit or delete. Committing it
+        turns a retraction into a git-history rewrite."""
+        self.pending()
+        self.comment(f"/decline {PAPER} it was my supervisor's account by mistake")
+        self.assertNotIn("supervisor", (state.CLAIMS_DIR / f"{ISSUE}.json").read_text())
+
+    def test_a_bare_decline_still_works_and_asks_why(self):
+        self.pending()
+        out = self.comment(f"/decline {PAPER}")
+        self.assertEqual(self.rec()["state"], "active")
+        self.assertFalse(self.rec()["declined"][0]["reason_given"])
+        self.assertIn("what happened", out["comment"])
+
+    def test_prose_is_not_scraped_as_paper_ids(self):
+        """`_ids` matches any letters-digits token, and a decline is exactly when
+        someone writes a sentence."""
+        self.pending()
+        out = self.comment(f"/decline {PAPER} I'll redo my figure-3 and GPT-4 notes")
+        self.assertNotIn("FIGURE-3", out["comment"])
+        self.assertNotIn("GPT-4", out["comment"])
+        self.assertNotIn("Not applied", out["comment"])
+
+    def test_the_aliases_reach_the_same_handler(self):
+        """An unrecognised verb is a silent no-op — the worst possible answer here."""
+        for verb in ("disown", "retract"):
+            with self.subTest(verb=verb):
+                self.setUp()
+                self.pending()
+                self.comment(f"/{verb} {PAPER} not mine")
+                self.assertEqual(self.rec()["state"], "active")
+
+    def test_declining_twice_is_byte_identical(self):
+        """The rebase-retry loop re-runs the script; a second timestamp would diverge."""
+        self.pending()
+        self.comment(f"/decline {PAPER} nope")
+        first = (state.CLAIMS_DIR / f"{ISSUE}.json").read_text()
+        out = self.comment(f"/decline {PAPER} nope again")
+        self.assertEqual((state.CLAIMS_DIR / f"{ISSUE}.json").read_text(), first)
+        self.assertIn("already declined", out["comment"])
+
+    def test_nothing_to_decline_is_refused_and_summons_nobody(self):
+        self.claim_paper()
+        out = self.comment(f"/decline {PAPER} changed my mind")
+        self.assertIn("nothing to decline", out["comment"])
+        self.assertNotIn("needs-organizer", out["add_labels"])
+
+    def test_a_confirmed_review_is_not_declinable_by_the_claimant(self):
+        self.pending()
+        self.comment(f"/confirm {PAPER}")
+        out = self.comment(f"/decline {PAPER} actually no")
+        self.assertEqual(self.rec()["state"], "submitted")
+        self.assertIn("already confirmed", out["comment"])
+
+    def test_it_flags_the_thread_for_an_organizer(self):
+        self.pending()
+        self.assertIn("needs-organizer",
+                      self.comment(f"/decline {PAPER} not mine")["add_labels"])
+
+    def test_an_organizer_may_proxy_it_but_not_a_confirm(self):
+        """Proxying a refusal forges nothing; proxying an affirmation forges a signature."""
+        self.pending()
+        self.comment(f"/decline {PAPER} they emailed me", actor=ORGANIZER)
+        self.assertEqual(self.rec()["state"], "active")
+        self.assertEqual(self.rec()["declined"][0]["by"], ORGANIZER)
+
+    def test_a_stranger_is_refused_and_writes_nothing(self):
+        self.pending()
+        out = self.comment(f"/decline {PAPER} lol", actor=STRANGER,
+                           issue=ISSUE, author=AUTHOR)
+        self.assertEqual(self.rec()["state"], "pending")
+        self.assertNotIn("needs-organizer", out["add_labels"])
+
+    def test_the_bot_alleges_nothing(self):
+        """Same contract as the reject notice: the machine never accuses anyone."""
+        self.pending()
+        body = self.comment(f"/decline {PAPER} that wasn't me")["comment"].lower()
+        for word in ("cheat", "violat", "misconduct", "fraud", "plagiar", "steal"):
+            self.assertNotIn(word, body)
+
+
+class TestDeclineDeadline(Base):
+    """Declining returns the time the clock was stopped at, never less than the floor.
+
+    Without this the paper is back at `active` with its original `due_at`, and if that
+    has passed the next 06:00 sweep expires it the same morning — no warning, because
+    the pre-deadline nudges already fired. Every live `pending` claim on 2026-08-17 was
+    in exactly that position.
+    """
+
+    def _pending_with(self, days_early: float):
+        self.claim_paper()
+        c = state.load_claims()[ISSUE]
+        rec = c["papers"][PAPER]
+        now = state.now_utc()
+        rec.update(state="pending", submission_ref="11",
+                   due_at=state.iso(now + timedelta(days=days_early)),
+                   pending_since=state.iso(now))
+        state.save_claim(c)
+
+    def test_time_left_on_the_clock_comes_back(self):
+        self._pending_with(days_early=9)
+        self.comment(f"/decline {PAPER} redoing it")
+        left = (state.parse(self.rec()["due_at"]) - state.now_utc()).days
+        self.assertGreaterEqual(left, 8)
+        self.assertLessEqual(left, 9)
+
+    def test_a_last_minute_upload_gets_the_floor_not_an_hour(self):
+        self._pending_with(days_early=1 / 24)
+        self.comment(f"/decline {PAPER} redoing it")
+        left = (state.parse(self.rec()["due_at"]) - state.now_utc()).total_seconds() / 86400
+        self.assertGreater(left, params.DECLINE_FLOOR_DAYS - 0.1)
+
+    def test_an_overdue_claim_is_not_expired_by_the_next_sweep(self):
+        """The trap this whole restore exists for."""
+        self.claim_paper()
+        c = state.load_claims()[ISSUE]
+        past = state.now_utc() - timedelta(days=20)
+        c["papers"][PAPER].update(state="pending", submission_ref="11",
+                                  due_at=state.iso(past + timedelta(days=12)),
+                                  pending_since=state.iso(past),
+                                  reminded=["pre3", "pre1"])
+        state.save_claim(c)
+        self.comment(f"/decline {PAPER} redoing it")
+        import sweep
+        with unittest.mock.patch.object(sweep.state, "REPO", self.tmp):
+            sweep.run(now=state.now_utc())
+        self.assertEqual(self.rec()["state"], "active", "the sweep expired a fresh claim")
+        self.assertEqual(self.rec()["reminded"], [], "old nudges must not suppress new ones")
+
+
+class TestDeclineBlocksReattachment(Base):
+    """The half without which the feature is worse than useless.
+
+    A declined claim is back at `active` with its PDF still in the inbox, so the next
+    routine `intake.py post` would re-post `/received` for the same response id and ask
+    the claimant to confirm the very file they refused.
+    """
+
+    def _declined(self):
+        self.claim_paper()
+        self.comment(f"/received {PAPER} ref:11", actor=ORGANIZER)
+        self.comment(f"/decline {PAPER} not mine")
+
+    def test_reconcile_keeps_it_out_of_to_post(self):
+        import intake
+        self._declined()
+        u = intake.Upload(issue=ISSUE, paper=PAPER, gh=AUTHOR, ref="11",
+                          submitted_at="2026-07-17 11:57:23")
+        b = intake.reconcile([u], state.load_claims())
+        self.assertEqual([x.paper for x in b["declined"]], [PAPER])
+        self.assertEqual(b["to_post"], [])
+        self.assertEqual(b["late"], [])
+
+    def test_a_new_upload_is_still_postable(self):
+        """Declining one file must not close the paper to the replacement."""
+        import intake
+        self._declined()
+        u = intake.Upload(issue=ISSUE, paper=PAPER, gh=AUTHOR, ref="42",
+                          submitted_at="2026-08-18 09:00:00")
+        b = intake.reconcile([u], state.load_claims())
+        self.assertEqual([x.ref for x in b["to_post"]], ["42"])
+
+    def test_a_hand_typed_received_cannot_resurrect_it(self):
+        self._declined()
+        out = self.comment(f"/received {PAPER} ref:11", actor=ORGANIZER)
+        self.assertEqual(self.rec()["state"], "active")
+        self.assertIn("declined by the claimant", out["comment"])
+
+    def test_declined_refs_reads_the_register(self):
+        self._declined()
+        self.assertEqual(state.declined_refs(self.rec()), {"11"})
+
+
 class TestLatenessIsAPropertyOfTheUpload(unittest.TestCase):
     """Whether an upload was late is decided by when it arrived, not by when we looked.
 

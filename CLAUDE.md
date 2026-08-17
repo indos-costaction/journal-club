@@ -34,14 +34,15 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
 `status.json`. It has **no GitHub knowledge** — the three workflow entrypoints call into it:
 
 - `issue_ops.py` — parses one GitHub `issues` (claim form) or `issue_comment` (`/claim` `/withdraw`
-  `/extend` `/confirm`, plus organizer-only `/received` `/reject`) event, validates + applies against
+  `/extend` `/confirm` `/decline`, plus organizer-only `/received` `/reject`) event, validates + applies against
   freshly-loaded state, writes the updated claim file + `status.json`, plus `comment.md` /
   `actions.json` for the workflow to act on. Unit-testable with a plain dict (`handle_event`).
   Enforces the identity barrier in two tiers: a coarse gate (thread owner or organizer) and then
   `COMMAND_ACL` per command.
 - `intake.py` — organizer-side, run **locally** (a comment from a GHA is `github-actions[bot]`, which
   `issue-ops.yml` ignores by design). `ingest` unpacks a LimeSurvey file archive into the private
-  inbox under canonical `claim_id` filenames; `reconcile` reports; `post` comments `/received`.
+  inbox under canonical `claim_id` filenames; `reconcile` reports; `post` comments `/received`; `quarantine` moves declined uploads
+  out of the working inbox.
   It **posts intent and never writes `claims/`** — one writer, or issue-ops would double-apply.
   Archive members are named `00010_01-pdf_00-<slugified-original-name>.pdf`: flat, zero-padded
   **response id first**, and the `fu_<random>` on-disk name nowhere to be seen. That prefix is the
@@ -74,6 +75,8 @@ three JSONs. `.github/ISSUE_TEMPLATE/claim.yml` is the claim form (paper IDs + a
 ## Claim state semantics (in `state.py`)
 
     active --/received (organizer)--> pending --/confirm (author)--> submitted --> completed
+                                         |
+                                         +---/decline--> active (deadline restored)
 
 - `IN_FLIGHT = {active, pending, submitted}` — occupies a slot, counts against the 3-claim cap and toward a paper's live-claim count.
 - `DONE = {completed}` — a floor-passing review; counts toward the completion threshold.
@@ -90,6 +93,17 @@ that are load-bearing rather than incidental:
   deadline clock. Someone who uploads on day 11 must not be expired on day 12 waiting on us.
 - **`/confirm` is the one command an organizer cannot proxy** (`issue_ops.COMMAND_ACL`). Everything
   else on any thread is organizer-drivable; that exception is the whole point of the handshake.
+- **`/decline` is the other answer**, and it *is* proxyable — proxying an affirmation forges a
+  signature, proxying a refusal forges nothing, and someone disowning an upload is likely to say so
+  by email. It returns the paper to `active` with the time that was still on its clock
+  (`params.DECLINE_FLOOR_DAYS` floors it), because a claim back at `active` with a past `due_at` is
+  expired by the next sweep the same morning, with no warning — the pre-deadline nudges have fired.
+  The refused response id goes in `rec["declined"]`, and **that register is the point**: without it
+  the next routine `intake.py post` re-attaches the very file the claimant refused. It is enforced
+  twice, in `intake.reconcile` (a `declined` bucket, never `to_post`) and in `state.apply_receive`
+  (a hand-typed `/received` is refused). The *reason text* is never written to `claims/` — only
+  `reason_given` — because a committed reason turns a retraction into a git-history rewrite; it
+  lives in the participant's own comment, which they can edit or delete.
 
 Paper status is derived: `done` at `COMPLETION_THRESHOLD` completed reviews, else `closed` at
 `POOL_CLOSE_THRESHOLD` live claimants, else `open`.
@@ -156,6 +170,12 @@ everywhere except the leaderboard.
   with `gh variable list`; `tests/test_flow.py::TestOrganizerRoster` pins the semantics, including
   that no handle is baked into the source. Set it locally too when running `issue_ops.py` by hand.
 - **Settings → Pages → Source = "GitHub Actions"**, or `pages.yml` deploys nothing.
+- **A `needs-organizer` label must exist**: `gh label create needs-organizer --color B60205
+  --description "a claimant declined an upload"`. It is the only thing in the system that asks an
+  organizer to look at a thread, and `announce.py` treats a failed `gh issue edit --add-label` as a
+  `::warning::` rather than an error — so if the label is missing, `/decline` works, the claimant is
+  answered, and the signal to you silently never appears. Same failure shape as the `ORGANIZERS`
+  variable above. Labels are add-only here; clear it by hand once you've dealt with the refusal.
 
 ## Guardrails
 

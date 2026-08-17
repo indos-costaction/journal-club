@@ -16,12 +16,15 @@ the public reads is a pure, idempotent recompute — so every Action is safe to 
 | Get reminded | — | the daily sweep @-mentions you at day 9 and day 11 (repeating the Upload link); day 12 auto-returns a paper you haven't uploaded (no penalty) |
 | Hand in a review | open that paper's **Upload link** and drop the annotated PDF | the link carries the claim key, so organizers' `intake.py` matches it and posts `/received <ID>` on your thread — which **stops the deadline clock** |
 | Sign it off | reply `/confirm <ID>` when the bot asks | it's graded against the 5-axis rubric and your score enters the leaderboard |
+| Refuse an upload | reply `/decline <ID> <why>` instead | for "that wasn't me" or "I want to send a new version" — the paper stays yours with the time that was left on its clock, and the declined file is never graded or re-attached |
 
 The upload form is open-access and its per-paper link is published in a public issue, so a file proves
 only that *someone* had the link — it cannot assert authorship. The claimant's `/confirm` is what makes
 a file a review, and the only place the no-AI declaration acquires an authenticated signatory. It is
 therefore **the one command an organizer cannot proxy**; `/received` and `/reject` are organizer-only,
-and `/claim`, `/withdraw`, `/extend` work either way. See `CLAUDE.md` for the state machine.
+and `/claim`, `/withdraw`, `/extend`, `/decline` work either way. `/decline` is proxyable precisely
+because it is a refusal — proxying an affirmation would forge a signature, proxying a refusal forges
+nothing. See `CLAUDE.md` for the state machine.
 
 The **pool + leaderboard** live at <https://indos-costaction.github.io/journal-club/>.
 
