@@ -1,0 +1,19 @@
+{
+  "issue": 44,
+  "participant": "oesteban",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-08-17T19:06:35Z"
+  },
+  "papers": {
+    "CROSS-27": {
+      "state": "active",
+      "claimed_at": "2026-08-17T19:06:35Z",
+      "due_at": "2026-08-29T19:06:35Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
