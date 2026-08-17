@@ -793,7 +793,7 @@ class TestDeclineBlocksReattachment(Base):
         self._declined()
         out = self.comment(f"/received {PAPER} ref:11", actor=ORGANIZER)
         self.assertEqual(self.rec()["state"], "active")
-        self.assertIn("declined by the claimant", out["comment"])
+        self.assertIn("was declined and can't be recorded", out["comment"])
 
     def test_declined_refs_reads_the_register(self):
         self._declined()

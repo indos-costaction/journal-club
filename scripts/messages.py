@@ -166,9 +166,8 @@ def _cap_line(claim: dict, claims: dict) -> str:
         bits.append(prose.t("cap.waiting_confirm", n=unconfirmed,
                             verb="is" if unconfirmed == 1 else "are"))
     if waiting:
-        bits.append(prose.t("cap.waiting_grading", n=waiting,
-                            verb="is" if waiting == 1 else "are",
-                            slots="that slot frees" if waiting == 1 else "those slots free"))
+        bits.append(prose.t("cap.waiting_grading.one" if waiting == 1
+                            else "cap.waiting_grading.many", n=waiting))
     tail = f" ({_prose_list(bits)})" if bits else ""
     return "\n\n" + prose.t("cap.full", n=n, cap=cap, note=note, tail=tail)
 

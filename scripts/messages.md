@@ -55,7 +55,7 @@ Two standing rules the tests enforce, both learned the hard way:
 `{pid}` — can't record an upload against a `{st}` claim.
 
 ## receive.was_declined
-`{pid}` — response `{ref}` was declined by the claimant; it can't be recorded. A new upload gets a new id.
+`{pid}` — response `{ref}` was declined and can't be recorded. A new upload gets a new id.
 
 ## receive.same_ref
 `{pid}` — already recorded (ref `{ref}`); still waiting on your `/confirm {pid}`.
@@ -70,7 +70,7 @@ Two standing rules the tests enforce, both learned the hard way:
 `{pid}` — upload received. It needs your confirmation below.
 
 ## confirm.already
-`{pid}` — already confirmed; it's with the organizers. Nothing to do.
+`{pid}` — already confirmed. Nothing to do; it's with the organizers.
 
 ## confirm.nothing_to_confirm
 `{pid}` — nothing to confirm (we have no upload for it yet). Upload it first and we'll ask you here.
@@ -79,7 +79,7 @@ Two standing rules the tests enforce, both learned the hard way:
 `{pid}` confirmed — thank you. It's with the organizers for grading.
 
 ## decline.already
-`{pid}` — already declined; nothing more to do. Upload again whenever you're ready.
+`{pid}` — already declined. Nothing to do; upload again whenever you're ready.
 
 ## decline.already_confirmed
 `{pid}` — you already confirmed this one, so it's with the organizers. Ask them here and they can pull it back.
@@ -97,7 +97,7 @@ An organizer will pick this up. The paper is still yours, and the file you decli
 Could you add a line here about what happened? Anything is useful — "that wasn't my upload" and "I want to redo some comments" need very different things from us, and we can't tell which from the command alone.
 
 ## reject.already_freed
-`{pid}` — already `{st}`; it counts for nothing already.
+`{pid}` — already `{st}`, so it counts for nothing.
 
 ## reject.ok
 `{pid}` has been withdrawn by the organizers and no longer counts. The paper is back in the pool.
@@ -109,7 +109,7 @@ Could you add a line here about what happened? Anything is useful — "that wasn
 `{pid}` — no active claim to extend.
 
 ## extend.already_used
-`{pid}` — you have already used your one-time extension. Withdraw it if you cannot finish.
+`{pid}` — you have already used your one-time extension. Withdraw it if you can't finish.
 
 ## extend.ok
 `{pid}` extended to **{due}** — this was your one-time +{EXTENSION_DAYS}-day extension.
@@ -151,8 +151,11 @@ That's **{n} of {cap}** active{note} — you'll need to finish or withdraw one b
 ## cap.waiting_confirm
 {n} {verb} waiting on your `/confirm`
 
-## cap.waiting_grading
-{n} {verb} with us for grading — {slots} up once scored
+## cap.waiting_grading.one
+{n} is with us for grading — that slot frees up once scored
+
+## cap.waiting_grading.many
+{n} are with us for grading — those slots free up once scored
 
 ## commands.heading
 ### If your plans change
@@ -227,7 +230,7 @@ Need longer? `/extend {pid}` buys a one-time +{EXTENSION_DAYS} days.
 There's no deadline on this one — the clock stopped when your file arrived. But it won't be graded, and it holds one of your {ACTIVE_CLAIM_CAP} slots, until you sign it off.
 
 ## not_your_thread
-@{actor} only the thread's owner (@{author}) or an organizer can run claim commands here.
+@{actor} — only the thread's owner (@{author}) or an organizer can run claim commands here.
 
 ## not_allowed.confirm
 `/confirm` — only @{author} can confirm their own review. Not even organizers can do this on someone's behalf; that's the point of it.
