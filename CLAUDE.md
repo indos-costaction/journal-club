@@ -117,6 +117,22 @@ everywhere except the leaderboard.
   trigger a `push` event (GitHub loop-prevention), it **also** listens on `workflow_run: completed` of the
   three state workflows — that's how a bot state-commit reaches the site.
 
+## Deployment requirements (a fresh repo or fork will look fine and not work)
+
+- **`ORGANIZERS` repo variable — REQUIRED.** `gh variable set ORGANIZERS --body "handle1,handle2"`,
+  or Settings → Secrets and variables → Actions → Variables. `issue-ops.yml` passes
+  `ORGANIZERS: ${{ vars.ORGANIZERS }}`; with the variable unset that renders as an **empty string**,
+  and an empty string is not an absent key, so the `os.environ.get("ORGANIZERS", …)` default that
+  used to sit there never fired. The roster is then **empty** and every `/received`,
+  `/reject` and organizer-driven `/withdraw` is refused. This ran undetected in production until
+  2026-08-17 — the whole intake path was dead — because a refusal is worded like an ordinary
+  permissions decision. There is deliberately **no hard-coded fallback roster**: the one that used
+  to be there fired only when the key was absent (never true in CI), so it protected nothing while
+  naming a single person as an organizer of any repo running this code. Empty means empty. Verify
+  with `gh variable list`; `tests/test_flow.py::TestOrganizerRoster` pins the semantics, including
+  that no handle is baked into the source. Set it locally too when running `issue_ops.py` by hand.
+- **Settings → Pages → Source = "GitHub Actions"**, or `pages.yml` deploys nothing.
+
 ## Guardrails
 
 - **Never hand-edit `status.json` or `ranking.json`** — they are derived; edit the authoritative source

@@ -17,6 +17,7 @@ What is worth testing here is not arithmetic, it is the **boundaries**:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -315,6 +316,50 @@ class TestIngestMatcher(unittest.TestCase):
         self.assertEqual(
             intake._file_meta('[{"name":"my review.pdf","filename":"fu_x1","ext":"pdf"}]'),
             ("fu_x1", "my review.pdf"))
+
+
+class TestOrganizerRoster(unittest.TestCase):
+    """The roster comes from the ORGANIZERS env var, set from a **repo variable**.
+
+    `issue-ops.yml` passes `ORGANIZERS: ${{ vars.ORGANIZERS }}`, which renders as an
+    empty string when the variable does not exist — and an empty roster means no one
+    can run `/received`, `/reject` or an organizer-driven `/withdraw`. Production ran
+    that way until 2026-08-17, silently, because the refusal reads like an ordinary
+    permissions decision.
+
+    The deployment fix is the repo variable, and there is deliberately no hard-coded
+    fallback: one used to name a single person as an organizer of any repo running this
+    code, while protecting nothing in CI. These tests pin that. If one starts failing,
+    someone has reintroduced a default — a real decision, not a tidy-up.
+    """
+
+    def _roster(self, env):
+        import importlib
+        with unittest.mock.patch.dict(os.environ, env, clear=False):
+            return importlib.reload(issue_ops).ORGANIZERS
+
+    def tearDown(self):
+        import importlib
+        importlib.reload(issue_ops)
+
+    def test_empty_means_nobody(self):
+        """An unset repo variable disables every organizer command. Documented, not liked."""
+        self.assertEqual(self._roster({"ORGANIZERS": ""}), set())
+
+    def test_absent_also_means_nobody(self):
+        env = {k: v for k, v in os.environ.items() if k != "ORGANIZERS"}
+        with unittest.mock.patch.dict(os.environ, env, clear=True):
+            import importlib
+            self.assertEqual(importlib.reload(issue_ops).ORGANIZERS, set())
+
+    def test_an_explicit_roster_wins(self):
+        self.assertEqual(self._roster({"ORGANIZERS": "Alice,bob"}), {"alice", "bob"})
+
+    def test_no_handle_is_baked_into_the_source(self):
+        """A roster in the source is configuration in the wrong place."""
+        src = (Path(issue_ops.__file__)).read_text()
+        line = [ln for ln in src.splitlines() if ln.startswith("ORGANIZERS")][0]
+        self.assertNotIn("oesteban", line)
 
 
 class TestRetiredPaperOnALiveThread(Base):

@@ -29,9 +29,25 @@ import state
 
 # Organizers may act on any claim thread. This is what lets intake.py post
 # `/received <ID> ref:<n>` on a participant's thread once their upload is in hand.
-# Override with the ORGANIZERS env var (comma-separated GitHub handles).
-ORGANIZERS = set(filter(None, os.environ.get(
-    "ORGANIZERS", "oesteban").lower().split(",")))
+# Set by the ORGANIZERS env var (comma-separated GitHub handles).
+#
+# !! DEPLOYMENT REQUIREMENT — the `ORGANIZERS` repo variable must be set. !!
+#
+# `issue-ops.yml` passes `ORGANIZERS: ${{ vars.ORGANIZERS }}`, which renders as an
+# EMPTY STRING when the variable does not exist. `get()`'s default only fires when the
+# key is *absent*, not when it is empty, so an unconfigured repo runs with **zero
+# organizers** and silently refuses every `/received`, `/reject` and organizer-driven
+# `/withdraw`. This is exactly what happened in production until 2026-08-17: the whole
+# intake path was dead, and the refusal is invisible because it looks like an ordinary
+# permissions decision. On a new repo or a fork, run:
+#
+#     gh variable set ORGANIZERS --body "handle1,handle2"
+#
+# There is deliberately **no hard-coded default**. A default here only fires when the
+# key is absent, which in CI it never is, so it read as a safety net while protecting
+# nothing — and it named one person as an organizer of any repo running this code.
+# The roster is configuration; empty means empty, in CI and locally alike.
+ORGANIZERS = set(filter(None, os.environ.get("ORGANIZERS", "").lower().split(",")))
 
 ID_RE = re.compile(r"\b([A-Za-z]+-R?\d+)\b")
 CMD_RE = re.compile(r"/(claim|withdraw|submit|received|confirm|reject|extend)\s+([^\n]*)",

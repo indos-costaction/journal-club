@@ -39,6 +39,12 @@ jobs:
       - name: Apply the issue/command to state
         id: apply
         env:
+          # REQUIRED repo variable — Settings → Secrets and variables → Actions →
+          # Variables, or `gh variable set ORGANIZERS --body "handle1,handle2"`.
+          # If it is not set this renders as an empty string, which issue_ops.py reads
+          # as an empty roster: every /received, /reject and organizer-driven /withdraw
+          # is then refused, and the refusal is indistinguishable from a normal
+          # permissions decision. That is exactly what happened until 2026-08-17.
           ORGANIZERS: ${{ vars.ORGANIZERS }}
         run: python scripts/issue_ops.py
 
