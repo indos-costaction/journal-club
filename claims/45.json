@@ -1,0 +1,19 @@
+{
+  "issue": 45,
+  "participant": "oesteban",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-08-17T19:10:22Z"
+  },
+  "papers": {
+    "DMRI-04": {
+      "state": "active",
+      "claimed_at": "2026-08-17T19:10:22Z",
+      "due_at": "2026-08-29T19:10:22Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
