@@ -177,12 +177,22 @@ class TestClock(Base):
         self.assertEqual(self.rec()["state"], "pending", "the clock did not stop at pending")
 
     def test_receive_accepted_after_expiry(self):
+        """An expired claim still accepts an upload, and is not told it was late.
+
+        `expired` records that the sweep's cron beat a manual retrieval — our latency,
+        not theirs. This message used to say "upload received **after the deadline**",
+        which for all five files in the 2026-08 backlog was simply untrue: every one
+        had arrived inside its deadline. Lateness needs the submitdate to establish
+        (intake.upload_was_late); the claim state cannot carry that.
+        """
         self.claim_paper()
         c = state.load_claims()[ISSUE]
         c["papers"][PAPER]["state"] = "expired"
         state.save_claim(c)
         r = self.comment(f"/received {PAPER} ref:5", actor=ORGANIZER)
-        self.assertIn("after the deadline", r["comment"])
+        self.assertIn("accepted", r["comment"])
+        self.assertIn("reinstated", r["comment"])
+        self.assertNotIn("after the deadline", r["comment"])
         self.assertEqual(self.rec()["state"], "pending")
 
     def test_extend_on_pending_is_refused_without_burning_it(self):

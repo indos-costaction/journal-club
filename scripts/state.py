@@ -348,8 +348,14 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
         if ref:
             rec["submission_ref"] = ref
         if was == "expired":
-            out.accept(f"`{pid}` — upload received after the deadline and **accepted**. "
-                       f"Confirm it below and it counts in full.")
+            # Does NOT say "after the deadline". `expired` means the sweep ran before
+            # an organizer got round to intake — retrieval is manual, expiry is a cron
+            # — so it is evidence about our latency, not theirs. All five uploads in the
+            # 2026-08 backlog were inside their deadlines and this line would have told
+            # every one of them otherwise. Whether someone was actually late is
+            # intake.upload_was_late's question, and it needs the submitdate to answer.
+            out.accept(f"`{pid}` — upload received and **accepted**; your claim is "
+                       f"reinstated. Confirm it below and it counts in full.")
         elif was == "pending":
             out.accept(f"`{pid}` — newer upload received; it replaces the earlier one. "
                        f"Still needs your confirmation below.")
