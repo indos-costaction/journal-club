@@ -233,10 +233,12 @@ class Outcome:
         lines = []
         if self.ok:
             lines.append(prose.t("delta.accepted_heading"))
-            lines += [f"- ✅ {m}" for m in self.ok]
+            # No per-item marker: every bullet under "Accepted:" is accepted, so a tick
+            # on each one repeats the heading once per line.
+            lines += [f"- {m}" for m in self.ok]
         if self.rejected:
             lines.append(prose.t("delta.rejected_heading"))
-            lines += [f"- ❌ {m}" for m in self.rejected]
+            lines += [f"- {m}" for m in self.rejected]
         return "\n".join(lines) if lines else prose.t("delta.nothing")
 
 

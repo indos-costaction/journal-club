@@ -21,6 +21,10 @@ Two standing rules the tests enforce, both learned the hard way:
    upload are ordinary outcomes — state the outcome and what to do next.
 2. **The bot alleges nothing.** It reports mechanics. Accusations are for organizers,
    in their own words, and preferably in private.
+3. **Emoji are rare and deliberate.** Exactly one is left — the warning on
+   `not_recorded`, the only message about something having gone wrong. Decoration
+   accretes one message at a time until everything is shouting and nothing reads as
+   urgent. (Arrows like → are not emoji: they do work inside a sentence.)
 
 ---
 
@@ -115,7 +119,7 @@ Could you add a line here about what happened? Anything is useful — "that wasn
 `{pid}` extended to **{due}** — this was your one-time +{EXTENSION_DAYS}-day extension.
 
 ## form_pending
-> ⏳ **The upload form isn't live yet.** We'll comment here the moment it is, and we'll move your deadline to match — so start reading now.
+> **The upload form isn't live yet.** We'll comment here the moment it is, and we'll move your deadline to match — so start reading now.
 
 ## no_ai
 **No AI** — it's the club's one hard rule, and AI-written reviews don't score.
@@ -134,10 +138,10 @@ _No recognised command found._
 |---|---|---|---|
 
 ## holdings.next_confirmed
-✅ confirmed — with us for grading
+confirmed — with us for grading
 
 ## holdings.next_sign_off
-⏳ **`/confirm {pid}`** to sign it off
+**`/confirm {pid}`** to sign it off
 
 ## holdings.clock_stopped
 _clock stopped_
@@ -193,10 +197,10 @@ Didn't upload this, or want to replace it? **Don't confirm it** — reply **`/de
 You get **{DEADLINE_DAYS} days** per paper, and we'll nudge you {when} before each deadline. Miss one and the paper returns to the pool, and you can claim it again whenever you like.
 
 ## claim_confirmation.welcome
-👋 @{who} — you're in. **Your reading starts now.**
+@{who} — you're in. **Your reading starts now.**
 
 ## claim_confirmation.refused
-👋 @{who} — **this didn't go through.** Here's why:
+@{who} — **this didn't go through.** Here's why:
 
 ## command_ack.greeting
 @{who} —
@@ -208,7 +212,7 @@ You get **{DEADLINE_DAYS} days** per paper, and we'll nudge you {when} before ea
 You're not holding any papers right now — [browse the pool]({SITE_URL}#papers) whenever you like.
 
 ## reminder
-⏰ @{who} your claim on `{pid}` is due in ~{days} day(s) (**{due}**). Done reading? {up}.{ext} Not going to finish? `/withdraw {pid}` returns it, which is a perfectly good outcome.
+@{who} — your claim on `{pid}` is due in ~{days} day(s) (**{due}**). Done reading? {up}.{ext} Not going to finish? `/withdraw {pid}` returns it, which is a perfectly good outcome.
 
 ## reminder.upload_link
 [**upload it here**]({url})
@@ -220,10 +224,10 @@ we'll post your upload link here as soon as the form is live
 Need longer? `/extend {pid}` buys a one-time +{EXTENSION_DAYS} days.
 
 ## expiry
-⌛ @{who} your claim on `{pid}` reached its deadline ({due}) and returned to the pool. It's open again if you'd still like it: `/claim {pid}`.
+@{who} — your claim on `{pid}` reached its deadline ({due}) and returned to the pool. It's open again if you'd still like it: `/claim {pid}`.
 
 ## confirm_nudge
-👋 @{who} your annotated PDF for `{pid}` has been sitting with us for ~{days} day(s), waiting on your sign-off.
+@{who} — your annotated PDF for `{pid}` has been sitting with us for ~{days} day(s), waiting on your sign-off.
 
 {attestation}
 
@@ -252,13 +256,13 @@ There's no deadline on this one — the clock stopped when your file arrived. Bu
 The organizers will follow up with the reason. If you think this is a mistake, reply here or contact them directly — it can be reversed.
 
 ## consent_missing
-❌ We can't record a claim without the consent checkbox ticked. Please edit the issue and confirm consent (see [`CONSENT.md`](https://github.com/indos-costaction/journal-club/blob/main/CONSENT.md)) — we'll pick it up automatically.
+We can't record a claim without the consent checkbox ticked. Please edit the issue and confirm consent (see [`CONSENT.md`](https://github.com/indos-costaction/journal-club/blob/main/CONSENT.md)) — we'll pick it up automatically.
 
 ## not_recorded
 ⚠️ Something went wrong on our side and **nothing was recorded** — your claims and deadlines are exactly as they were before this. Please post the same command again in a few minutes; if it fails a second time the organizers will pick it up from the run log.
 
 ## close_notice
-ℹ️ @{author} closing this issue does **not** release your claims — {papers} {verb} still active and the {DEADLINE_DAYS}-day deadline keeps running. To return a paper, comment `/withdraw <ID>`. Reopen this issue to keep working.
+@{author} — closing this issue does **not** release your claims — {papers} {verb} still active and the {DEADLINE_DAYS}-day deadline keeps running. To return a paper, comment `/withdraw <ID>`. Reopen this issue to keep working.
 
 ## thread_done.submitted
 Nothing on this thread needs your action — closing it. Your confirmed reviews are with the organizers for grading, and your points will appear on the leaderboard once they're scored. Open a new claim whenever you like → {SITE_URL}#papers

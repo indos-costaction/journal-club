@@ -195,7 +195,7 @@ def _next_steps() -> str:
 def _confirm_attestation(pid: str) -> str:
     """What `/confirm` actually attests — the single source of that wording.
 
-    Without this the ask was one table cell reading "⏳ `/confirm EEG-15` to sign it
+    Without this the ask was one table cell reading "`/confirm EEG-15` to sign it
     off", and nothing said what was being signed. The upload form already collects the
     no-AI declaration ("I declare that I read and annotated this paper myself, without
     AI assistance"), so from the claimant's side a bare `/confirm` reads as a redundant
@@ -244,7 +244,7 @@ def claim_confirmation(claim: dict, pool: dict, outcome, claims: dict) -> str:
     The greeting tracks the outcome. A claim form can be answered with a pure refusal:
     the paper filled up while the form was open, the cap is already spent, or another
     thread won the same paper in a push race. Greeting all three with "you're in, your
-    reading starts now" directly above "**Not applied:** ❌" makes the reply contradict
+    reading starts now" directly above "**Not applied:**" makes the reply contradict
     itself in its first two lines. Spotted on #43 while reproducing issue #40 — the
     delta was correct by then and the banner above it still was not.
     """

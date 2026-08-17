@@ -594,6 +594,31 @@ class TestNoReassuranceAboutConsequences(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertNotIn(phrase, rendered)
 
+    def test_emoji_are_rare_and_deliberate(self):
+        """Decoration accretes one message at a time until everything is shouting.
+
+        Exactly one pictographic marker survives — the warning on `not_recorded`, the
+        only message about something having gone wrong. Per-bullet ticks and crosses
+        are gone too: every item under "**Accepted:**" is accepted, so a tick on each
+        line repeats the heading once per line.
+
+        Arrows (→, ↗) are not covered here: they do navigational work in a sentence
+        rather than decorating one.
+        """
+        import prose as prose_mod
+        pictographic = re.compile("[\U0001F300-\U0001FAFF⏰-⏿✅❌"
+                                  "ℹ⚠⭐️]")
+        found = sorted({e for v in prose_mod.TEXT.values() for e in pictographic.findall(v)})
+        self.assertEqual(found, ["⚠", "️"], f"unexpected emoji in the catalogue: {found}")
+
+    def test_delta_bullets_carry_no_marker(self):
+        import prose as prose_mod
+        out = state.Outcome()
+        out.accept("first"), out.reject("second")
+        self.assertEqual(out.delta().splitlines(),
+                         [prose_mod.t("delta.accepted_heading"), "- first",
+                          prose_mod.t("delta.rejected_heading"), "- second"])
+
     def test_it_is_scanning_something_that_actually_holds_prose(self):
         """Guards the failure above: a scan of an empty haystack always passes."""
         import prose as prose_mod
