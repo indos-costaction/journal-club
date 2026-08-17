@@ -66,11 +66,15 @@ async function load() {
 // The mosaic answers "how far along is this paper?", which is NOT the table's
 // `status` field: that one answers "can I still claim it?" and stays "open" until
 // five people hold it. A paper with one claimant is being read, so it must not
-// look untouched. Progress is therefore derived here, from the counts.
-const REVIEW = "review", DONE = "done", OPEN = "open";
+// look untouched. `progress` is computed in state.py (paper_progress) and shipped
+// in status.json, so the thresholds live in exactly one place.
+const PARTIAL = "partial", REVIEW = "review", DONE = "done", OPEN = "open";
 function paperProgress(id) {
   const s = STATUS.papers?.[id];
   if (!s) return OPEN;
+  if (s.progress) return s.progress;
+  // A status.json older than this script: fall back to the three states it can
+  // support rather than painting the whole pool as untouched.
   if (s.status === "done") return DONE;
   return (s.live_claims > 0 || s.completed_reviews > 0) ? REVIEW : OPEN;
 }
@@ -79,7 +83,7 @@ function paperProgress(id) {
 function renderMosaic() {
   const box = $("#mosaic"); if (!box) return;
   const frag = document.createDocumentFragment();
-  const tally = { open: 0, review: 0, done: 0 };
+  const tally = { open: 0, review: 0, partial: 0, done: 0 };
   for (const p of POOL) {
     const st = paperProgress(p.id);
     tally[st]++;
@@ -97,7 +101,8 @@ function renderMosaic() {
   }
   box.replaceChildren(frag);
   box.setAttribute("aria-label",
-    `Paper pool: ${tally.open} not yet started, ${tally.review} in review, ${tally.done} complete, of ${POOL.length}.`);
+    `Paper pool: ${tally.open} not yet started, ${tally.review} in review, ` +
+    `${tally.partial} partly reviewed, ${tally.done} complete, of ${POOL.length}.`);
   const t = STATUS.totals;
   if (t) $("#mosaicCount").textContent =
     `${t.reviews_completed} of ${t.papers * STATUS.params.completion_threshold} reviews in`;
@@ -106,10 +111,11 @@ function renderMosaic() {
 /* ---------------------------------------------------------------------------
    Hover card. One reusable node, not 242, positioned on demand.
 --------------------------------------------------------------------------- */
-const WORD = { open: "open", review: "in review", done: "complete" };
+const WORD = { open: "open", review: "in review", partial: "partly reviewed", done: "complete" };
 
 function tipContent(p) {
-  const s = STATUS.papers?.[p.id] || { live_claims: 0, completed_reviews: 0, status: "open" };
+  const s = STATUS.papers?.[p.id]
+    || { live_claims: 0, completed_reviews: 0, reviews_in_flight: 0, status: "open" };
   const st = paperProgress(p.id);
   const meta = [p.first_author, p.year, p.venue].filter(Boolean).join(" · ");
 
@@ -121,6 +127,14 @@ function tipContent(p) {
       ? "Complete — click to find it in the list →"
       : "Closed to new claims — click to find it in the list →";
 
+  // Work that is uploaded or signed off but not yet graded. Reported beside the
+  // graded count, never folded into it: the tile only ever moves on a grade, so
+  // grading lag must not read as "nobody has touched this paper".
+  const flight = s.reviews_in_flight
+    ? [el("span", { className: "tip-sep", textContent: "·" }),
+       el("span", { className: "tip-flight", textContent: `+${s.reviews_in_flight} being graded` })]
+    : [];
+
   return [
     el("p", { className: "tip-title", textContent: p.title }),
     el("p", { className: "tip-meta", textContent: meta }),
@@ -130,7 +144,8 @@ function tipContent(p) {
       el("span", { className: "tip-sep", textContent: "·" }),
       el("span", { textContent: `${s.live_claims}/${STATUS.params.pool_close_threshold} claims` }),
       el("span", { className: "tip-sep", textContent: "·" }),
-      el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` })),
+      el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` }),
+      ...flight),
     el("p", { className: "tip-cta", textContent: cta }),
   ];
 }
@@ -237,7 +252,11 @@ function renderPool() {
   tbody.replaceChildren();
   let n = 0;
   for (const p of POOL) {
-    const s = STATUS.papers?.[p.id] || { live_claims: 0, completed_reviews: 0, status: "open", outstanding_need: 3 };
+    const s = STATUS.papers?.[p.id] || {
+      live_claims: 0, completed_reviews: 0, reviews_in_flight: 0,
+      status: "open", progress: "open",
+      outstanding_need: STATUS.params?.completion_threshold || 3,
+    };
     if (mod && p.modality !== mod) continue;
     if (st && s.status !== st) continue;
     if (needy && s.outstanding_need === 0) continue;
@@ -255,7 +274,14 @@ function renderPool() {
       el("td", { textContent: p.modality }),
       title,
       el("td", { className: "num", textContent: `${s.live_claims}/${STATUS.params.pool_close_threshold}` }),
-      el("td", { className: "num", textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold}` }),
+      el("td", { className: "num" },
+        el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold}` }),
+        // Uploaded or signed off, not yet graded. Kept out of the ratio itself so the
+        // column keeps meaning "graded", which is what the completion threshold counts.
+        ...(s.reviews_in_flight
+          ? [el("span", { className: "flight", title: "received, not yet graded",
+                          textContent: ` +${s.reviews_in_flight}` })]
+          : [])),
       el("td", {}, statusBadge(s.status)),
       el("td", {}, action)));
   }

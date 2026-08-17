@@ -25,12 +25,23 @@
   --closed: #b7791f;
   --done: var(--logo-purple);
 
-  /* Hero mosaic — progress, not claimability (see paperProgress() in app.js), so
-     these deliberately do NOT map 1:1 onto the badge colours above. Chosen to stay
-     legible on the --logo-blue ground, which the badge colours are not. */
-  --m-open: #4FB07A;                /* nobody reading it yet */
-  --m-review: var(--logo-orange);   /* claimed and/or partly reviewed */
-  --m-done: var(--logo-lavender);   /* three reviews in */
+  /* Hero mosaic — progress, not claimability (see paper_progress() in state.py), so
+     these deliberately do NOT map 1:1 onto the badge colours above. The four steps are
+     the four logo colours, in order.
+
+     Measured against the --logo-blue hero they sit on: turquoise 6.2:1, orange 7.5:1,
+     lavender 3.5:1, purple 1.4:1. Purple is the one that cannot be seen on its own, and
+     that is accepted rather than worked around. Every fix tried was worse: a rim makes
+     the tile read as a hollow checkbox (the opposite of "finished"), and no purple light
+     enough to clear 3:1 is still distinguishable from the lavender beside it. In a grid
+     of 11px tiles with 3px gaps a completed paper is read against its bright neighbours,
+     not against the ground, and a pool going dark as it finishes reads as settled. The
+     accessible equivalent is not the tile: the mosaic is one labelled role="img" whose
+     alt text carries the tally, and the pool table below is the real data. */
+  --m-open: var(--logo-turquoise);   /* nobody reading it yet */
+  --m-review: var(--logo-orange);    /* claimed, nothing graded yet */
+  --m-partial: var(--logo-lavender); /* one or two graded reviews in */
+  --m-done: var(--logo-purple);      /* all three, and settled */
 }
 
 /* Reset & base */
@@ -171,6 +182,8 @@ th {
   color: var(--muted); font-weight: 600;
 }
 td.num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* "+1" beside the graded ratio: uploads in hand, not yet graded. */
+td.num .flight { color: var(--muted); font-size: 0.85em; }
 td a { color: var(--accent); text-decoration: none; }
 td a:hover { text-decoration: underline; }
 
@@ -379,8 +392,11 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   @keyframes heroBob { 50% { transform: translateY(6px); } }
 }
 
-/* The mosaic — one tile per paper. It is the progress display: the pool fills
-   in over the summer as tiles turn orange, then lavender. */
+/* The mosaic — one tile per paper. It is the progress display: the pool fills in over
+   the summer as tiles turn orange, blush lavender at the first graded review, then
+   settle to purple. Four flat colours, no meter: at 11px a fill level or a pip is
+   noise, and the exact count is one hover away in the card and permanently in the
+   table below. */
 .mosaic { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; max-width: 640px; margin: 0 auto; }
 .mosaic a {
   display: block; width: 11px; height: 11px; border-radius: 2px;
@@ -388,8 +404,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   transition: transform 0.1s ease;
 }
 .mosaic a:hover { outline: 2px solid #fff; outline-offset: 1px; transform: scale(1.35); }
-.mosaic a.s-review { background: var(--m-review); }
-.mosaic a.s-done { background: var(--m-done); }
+.mosaic a.s-open    { background: var(--m-open); }
+.mosaic a.s-review  { background: var(--m-review); }
+.mosaic a.s-partial { background: var(--m-partial); }
+.mosaic a.s-done    { background: var(--m-done); }
 @media (prefers-reduced-motion: reduce) {
   .mosaic a { transition: none; }
   .mosaic a:hover { transform: none; }
@@ -407,12 +425,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   margin: 1rem auto 0; font-size: 0.85rem; color: rgba(255, 255, 255, 0.75);
   display: flex; gap: 0.5rem 1.1rem; justify-content: center; flex-wrap: wrap; align-items: center;
 }
+/* One swatch class, used by both the legend and the hover card, so a tile and the thing
+   claiming to explain it cannot drift apart. */
 .key {
   display: inline-block; width: 10px; height: 10px; border-radius: 2px;
   margin-right: 0.35rem; vertical-align: -1px;
 }
 .k-open { background: var(--m-open); }
 .k-review { background: var(--m-review); }
+.k-partial { background: var(--m-partial); }
 .k-done { background: var(--m-done); }
 .mosaic-hint { color: rgba(255, 255, 255, 0.55); font-size: 0.8rem; }
 
@@ -452,6 +473,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 }
 .tip-stats .key { margin-right: 0.1rem; }
 .tip-sep { color: var(--line); }
+/* Received but not yet graded. Deliberately quieter than the graded ratio beside it:
+   it is context for why a tile has not moved, not a number the club counts. */
+.tip-flight { color: var(--muted); }
 .tip-cta {
   margin-top: 0.45rem;
   padding-top: 0.4rem;

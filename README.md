@@ -33,7 +33,8 @@ The **pool + leaderboard** live at <https://indos-costaction.github.io/journal-c
 ```
 docs/                 GitHub Pages site (index.html + app.js) and the web-served JSONs:
   data/pool.json      static paper identity (seeded from the curated lit-db)
-  data/status.json    DERIVED per-paper: live_claims, completed_reviews, status, outstanding_need
+  data/status.json    DERIVED per-paper: live_claims, completed_reviews, reviews_in_flight,
+                        status (claimable?), progress (how far along?), outstanding_need
   data/ranking.json   DERIVED leaderboard
 claims/<issue>.json   AUTHORITATIVE dynamic truth — one file per claim issue
 ledger/<claim>.json   AUTHORITATIVE scores — one file per graded review

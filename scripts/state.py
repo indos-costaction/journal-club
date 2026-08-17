@@ -52,6 +52,12 @@ LEDGER_DIR = REPO / "ledger"
 # must not be expired on day 12 while waiting on us.
 IN_FLIGHT = {"active", "pending", "submitted"}
 DONE = {"completed"}
+# A strict subset of IN_FLIGHT: a file exists for this claim but carries no grade yet.
+# These are *already* counted in `live_claims`, so the two numbers overlap by design —
+# `live_claims` says how many copies are out, this says how many of them came back.
+# It exists so the site can say "two graded, a third with the organizers" instead of
+# letting weeks of grading lag read as "nobody has touched this paper".
+REVIEW_IN_FLIGHT = {"pending", "submitted"}
 # "recalled": legacy pre-rename data. "rejected": removed by an organizer for a rules
 # violation — mechanically identical to withdrawn/returned, but kept distinct because
 # for a paper carrying co-authorship, "removed for a violation" and "scored badly" must
@@ -144,6 +150,12 @@ def completed_count(claims: dict, paper_id: str) -> int:
                if pid == paper_id and s in DONE)
 
 
+def in_flight_count(claims: dict, paper_id: str) -> int:
+    """Uploads received for this paper that have not been graded yet."""
+    return sum(1 for pid, _p, s in _iter_paper_states(claims)
+               if pid == paper_id and s in REVIEW_IN_FLIGHT)
+
+
 def active_cap_count(claims: dict, participant: str) -> int:
     """How many in-flight papers this participant holds (across all their issues)."""
     return sum(1 for _pid, p, s in _iter_paper_states(claims)
@@ -163,6 +175,22 @@ def paper_status(live: int, completed: int) -> str:
     return "open"
 
 
+# The four buckets the hero mosaic paints. These deliberately do NOT match
+# paper_status() above, which answers "can I still claim it?" and stays "open" until
+# five people hold it. This answers "how far along is it?", so a paper with one
+# claimant must not look untouched, and a paper one review short of complete must not
+# look like one nobody has opened. Both are needed; neither derives from the other.
+PROGRESS_STATES = ("open", "review", "partial", "done")
+
+
+def paper_progress(live: int, completed: int) -> str:
+    if completed >= params.COMPLETION_THRESHOLD:
+        return "done"
+    if completed > 0:
+        return "partial"
+    return "review" if live > 0 else "open"
+
+
 def compute_status(pool: dict, claims: dict) -> dict:
     """Derive per-paper + club-level status. Pure function of pool + claims."""
     papers = {}
@@ -174,6 +202,9 @@ def compute_status(pool: dict, claims: dict) -> dict:
         completed = completed_count(claims, pid)
         st = paper_status(live, completed)
         need = max(0, params.COMPLETION_THRESHOLD - completed)
+        # `need` counts graded reviews only, and stays that way: it is the public
+        # headline number and the site's "still needs reviews" filter. Work in flight
+        # is reported beside it, never subtracted from it.
         total_outstanding += need
         total_completed += completed
         n_done += st == "done"
@@ -184,7 +215,9 @@ def compute_status(pool: dict, claims: dict) -> dict:
             "level": rec["level"],
             "live_claims": live,       # "copies" currently drawn from the library
             "completed_reviews": completed,  # reports received
-            "status": st,
+            "reviews_in_flight": in_flight_count(claims, pid),  # ...and not yet graded
+            "status": st,              # claimability
+            "progress": paper_progress(live, completed),  # how far along (mosaic)
             "outstanding_need": need,
         }
     return {
