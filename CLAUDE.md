@@ -48,6 +48,10 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
   Per-paper `reminded` markers guarantee each nudge fires once.
 - `grade.py` — organizer-only: enter the 5 rubric axis scores for one review into the ledger, flip the
   claim `submitted → completed` (floor passed) or `submitted → returned` (below floor), refresh aggregates.
+- `announce.py` — the **only** thing that talks to GitHub, and it runs **after** the push (see below).
+  Reads `actions.json` + `comment.md` (`issue-ops` mode) or `notifications.json` (`sweep` mode), normalises
+  both onto one `Intent` shape, and emits ordered `gh` argv from a pure `plan()`. A failed comment or close
+  is fatal; a failed label only warns.
 - `rank.py` — recompute `ranking.json` as a pure function of ledger + claims (`write_ranking`).
 - `seed_pool.py` — one-time (or re-seed): build `pool.json` from the curated `references/lit-db/` in the
   surrounding my-grants monorepo. IDs are deterministic — sort key is `(citationCount desc, paperId)` —
@@ -95,7 +99,10 @@ everywhere except the leaderboard.
   lifecycle boundaries — the per-command ACL, the auto-close predicate, that `pending` stops the clock,
   and that a rejected review leaves the leaderboard. Each test builds a throwaway repo in a temp dir and
   repoints `state`'s module-level paths at it; **do not skip that** — `state.py` resolves its paths from
-  `__file__`, so a test that forgets rewrites the live `claims/`.
+  `__file__`, so a test that forgets rewrites the live `claims/`. `tests/test_announce.py` asserts the
+  `gh` argv `plan()` emits (pure, never shells out); `tests/test_workflows.py` lints the workflow YAML as
+  text (no PyYAML here) for the ordering property no unit test can reach; `tests/test_pool.py` runs
+  against the *published* pool.
 - Time-dependent functions all take an explicit `now` for determinism. Keep it that way.
 - Run any entrypoint locally against the checked-in state: `python scripts/sweep.py`,
   `python scripts/rank.py`, `python scripts/grade.py --issue N --paper ID --engagement .. --grader you`.
@@ -107,11 +114,21 @@ everywhere except the leaderboard.
 ## Concurrency & the workflows (`.github/workflows/`)
 
 - `issue-ops.yml`, `daily-sweep.yml`, `grade.yml` all follow **mutate-and-push**: run Python → commit the
-  updated state → push back. `issue-ops` has a **rebase-retry loop**: on push rejection it `reset --hard`
-  to the fetched tip and **re-applies the intent** (re-runs `issue_ops.py`) rather than replaying a diff —
-  this is why every operation must be idempotent and re-derivable.
-- The `jc-state-push` concurrency group serialises pushes across `issue-ops` and `grade`; runs are queued,
-  **not** cancelled (each carries a distinct user action).
+  updated state → push back. `issue-ops` and `daily-sweep` have a **rebase-retry loop**: on push rejection
+  they `reset --hard` to the fetched tip and **re-apply the intent** (re-run `issue_ops.py` / `sweep.py`)
+  rather than replaying a diff — this is why every operation must be idempotent and re-derivable.
+- **Push before you speak.** Nothing participant-facing happens until the state is on `origin`. The retry
+  loop re-applies the intent, which *rewrites* `comment.md` and `actions.json`, so a comment posted before
+  the push announces a decision that may never persist — that was issue #40, and on 2026-07-31 it told #37
+  it held `EEG-03` when the attempt that landed had rejected the claim. Two invariants hold it up: `main()`
+  rewrites both artifacts on **every** invocation including its early returns, and both are gitignored, so
+  `git reset --hard` leaves them for the re-run to overwrite. `tests/test_workflows.py` lints the ordering
+  and forbids any inline `gh issue comment` / `close` / `--add-label` in a workflow, which makes the
+  property structural rather than positional.
+- The `jc-state-push` group (`issue-ops` + `grade`) reduces contention; it does **not** serialise, and must
+  not be relied on — GitHub's own timestamps show two `issue-ops` runs overlapping by 12 s on 2026-07-31.
+  Correctness is the retry loop plus the ordering above. `daily-sweep` is deliberately in its own group:
+  sharing would let a 06:00 UTC cron cancel a queued command.
 - `issue-ops` ignores `github-actions[bot]` events to avoid reacting to its own comments/auto-close.
 - `pages.yml` regenerates `site.json` at build time and redeploys. Because `GITHUB_TOKEN` commits can't
   trigger a `push` event (GitHub loop-prevention), it **also** listens on `workflow_run: completed` of the

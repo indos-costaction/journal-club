@@ -16,6 +16,8 @@ What is worth testing here is not arithmetic, it is the **boundaries**:
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -205,9 +207,28 @@ class TestIdempotence(Base):
     def test_reupload_updates_ref_only(self):
         self.claim_paper()
         self.comment(f"/received {PAPER} ref:1", actor=ORGANIZER)
-        self.comment(f"/received {PAPER} ref:2", actor=ORGANIZER)
+        r = self.comment(f"/received {PAPER} ref:2", actor=ORGANIZER)
         self.assertEqual(self.rec()["state"], "pending")
         self.assertEqual(self.rec()["submission_ref"], "2")
+        # a genuine second file: the claimant is told, and the nudge clock restarts
+        self.assertIn("newer upload received", r["comment"])
+
+    def test_the_same_ref_received_twice_is_byte_identical(self):
+        """A re-run must not claim a newer upload arrived when the same one did.
+
+        `newtest=Y` on the upload link mints a fresh LimeSurvey response id per
+        submission, so an equal ref proves the same file. Without this guard a workflow
+        re-run, a redelivered webhook or a double paste would restamp `pending_since`,
+        wipe the confirm nudges, and tell the claimant their file had been replaced —
+        and after the #40 reorder that is the message that gets posted.
+        """
+        self.claim_paper()
+        self.comment(f"/received {PAPER} ref:7", actor=ORGANIZER)
+        first = (state.CLAIMS_DIR / f"{ISSUE}.json").read_text()
+        r = self.comment(f"/received {PAPER} ref:7", actor=ORGANIZER)
+        self.assertEqual((state.CLAIMS_DIR / f"{ISSUE}.json").read_text(), first)
+        self.assertIn("already recorded", r["comment"])
+        self.assertNotIn("newer upload received", r["comment"])
 
     def test_ref_is_not_scraped_as_a_paper_id(self):
         self.claim_paper()
@@ -393,6 +414,121 @@ class TestRetiredPaperOnALiveThread(Base):
         out = self.claim_paper(PAPER)
         self.assertNotIn(PAPER, state.load_claims().get(ISSUE, {}).get("papers", {}))
         self.assertIn("not a paper id in the pool", out["comment"])
+
+
+class TestMainArtifacts(Base):
+    """``main()``'s on-disk contract — the two files ``announce.py`` consumes.
+
+    Nothing exercised this before. It matters now: after the #40 reorder, ``comment.md``
+    and ``actions.json`` are read *after* the push, and the rebase-retry loop depends on
+    every invocation rewriting both of them. A path that quietly left a stale artifact
+    behind would put the old bug straight back.
+    """
+
+    def run_main(self, payload, event_name):
+        p = self.tmp / "event.json"
+        p.write_text(json.dumps(payload))
+        env = {"GITHUB_EVENT_PATH": str(p), "GITHUB_EVENT_NAME": event_name}
+        # main() logs a one-line summary for the workflow log; swallow it so the test
+        # run stays quiet.
+        with unittest.mock.patch.dict(os.environ, env), \
+                contextlib.redirect_stdout(io.StringIO()):
+            issue_ops.main()
+        return ((state.REPO / "comment.md").read_text(),
+                json.loads((state.REPO / "actions.json").read_text()))
+
+    def claim_payload(self, pid=PAPER, issue=ISSUE, author=AUTHOR):
+        # No "event_name" key: that is the real GitHub payload shape, and main() has to
+        # fill it from GITHUB_EVENT_NAME.
+        return {"action": "opened",
+                "issue": {"number": issue, "user": {"login": author},
+                          "labels": [{"name": "claim"}],
+                          "body": f"{pid}\n- [x] I consent\nAttributed"}}
+
+    def test_a_claim_writes_both_artifacts(self):
+        comment, actions = self.run_main(self.claim_payload(), "issues")
+        self.assertIn("claimed", comment)
+        self.assertEqual(set(actions), {"issue", "add_labels", "assignees",
+                                        "changed", "close", "close_comment"})
+        self.assertEqual(actions["issue"], ISSUE)
+        self.assertTrue(actions["changed"])
+        self.assertIn("mod:EEG", actions["add_labels"])
+
+    def test_event_name_comes_from_the_environment(self):
+        """The payload carries no event_name; only GITHUB_EVENT_NAME says what this is."""
+        _c, actions = self.run_main(self.claim_payload(), "")
+        self.assertIsNone(actions["issue"])      # unknown event -> handled, silently
+
+    def test_a_no_op_event_still_writes_both_artifacts(self):
+        """The contract announce.py relies on: it always reads both files."""
+        payload = {"action": "opened",
+                   "issue": {"number": 77, "user": {"login": STRANGER},
+                             "labels": [], "body": "just a bug report, no ids"}}
+        comment, actions = self.run_main(payload, "issues")
+        self.assertEqual(comment, "")
+        self.assertFalse(actions["changed"])
+        self.assertEqual(actions["issue"], 77)
+
+    def test_the_artifacts_land_at_the_repo_root(self):
+        """Where the workflow's working directory expects them."""
+        self.run_main(self.claim_payload(), "issues")
+        self.assertTrue((state.REPO / "comment.md").exists())
+        self.assertTrue((state.REPO / "actions.json").exists())
+
+
+class TestLostPushRace(Base):
+    """Issue #40: the loser of a push race must be told it lost.
+
+    Reproduces what run 30667267903 did on 2026-07-31. Two threads claim EEG-15 within
+    seconds; the second computes an acceptance against pre-race state, loses the push,
+    resets to the winner's tip and re-applies. ``shutil.copytree`` stands in for
+    ``git reset --hard``.
+
+    What the workflow used to do was post the *first*, discarded comment. The fix posts
+    the *second*, and these tests pin that the second one is right — the whole reorder
+    is worthless if the re-run cannot tell the loser apart from the winner.
+    """
+    WINNER, LOSER = 36, 37
+
+    def _snapshot(self) -> Path:
+        snap = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, snap, True)
+        shutil.rmtree(snap)
+        shutil.copytree(self.tmp, snap)
+        return snap
+
+    def _restore(self, snap: Path):
+        shutil.rmtree(self.tmp)
+        shutil.copytree(snap, self.tmp)
+
+    def test_the_losing_thread_is_told_it_lost(self):
+        origin = self._snapshot()
+
+        # attempt 1 — both threads see empty state, both would accept
+        optimistic = self.claim_paper(PAPER, issue=self.LOSER)
+        self.assertIn("claimed — due", optimistic["comment"])
+
+        self._restore(origin)                        # git reset --hard origin/main
+        self.claim_paper(PAPER, issue=self.WINNER)   # the commit that landed first
+
+        # the re-apply inside the retry loop
+        retried = self.claim_paper(PAPER, issue=self.LOSER)
+        self.assertIn("you already hold this paper", retried["comment"])
+        self.assertNotIn("claimed — due", retried["comment"])
+        self.assertEqual(state.load_claims()[self.LOSER]["papers"], {})
+
+    def test_the_winning_thread_keeps_its_claim(self):
+        self.claim_paper(PAPER, issue=self.WINNER)
+        self.claim_paper(PAPER, issue=self.LOSER)
+        self.assertEqual(self.rec(PAPER, self.WINNER)["state"], "active")
+
+    def test_reapplying_the_winners_event_leaves_its_claim_untouched(self):
+        """`status.json` will differ by `generated_at` — that is deliberate, see the
+        comment at issue_ops.py's save_claim. The *claim* must not move."""
+        self.claim_paper(PAPER, issue=self.WINNER)
+        before = (state.CLAIMS_DIR / f"{self.WINNER}.json").read_text()
+        self.claim_paper(PAPER, issue=self.WINNER)
+        self.assertEqual((state.CLAIMS_DIR / f"{self.WINNER}.json").read_text(), before)
 
 
 if __name__ == "__main__":

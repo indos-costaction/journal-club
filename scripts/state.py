@@ -327,6 +327,17 @@ def apply_receive(claim: dict, ids: list[str], now: datetime,
         if rec["state"] not in RECEIVABLE:
             out.reject(f"`{pid}` — can't record an upload against a `{rec['state']}` claim.")
             continue
+        if rec["state"] == "pending" and ref and rec.get("submission_ref") == ref:
+            # Same LimeSurvey response id = the same file seen twice (a workflow re-run,
+            # a redelivered webhook, an organizer pasting the command again). Restamping
+            # would move the confirm-nudge clock and tell the claimant a newer upload had
+            # replaced theirs, neither of which is true. `newtest=Y` on the upload link
+            # (messages.upload_url) mints a fresh response id per submission, so an equal
+            # ref cannot be a genuine re-upload. With no ref we cannot tell, so we fall
+            # through and restamp.
+            out.accept(f"`{pid}` — already recorded (ref `{ref}`); still waiting on your "
+                       f"`/confirm {pid}`.")
+            continue
         was = rec["state"]
         rec["state"] = "pending"
         # Restamp on a re-upload: the nudge clock should track the newest file, not the

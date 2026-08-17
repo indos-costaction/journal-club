@@ -337,6 +337,19 @@ def consent_missing() -> str:
             "automatically.")
 
 
+def not_recorded() -> str:
+    """Posted when the push exhausted its retries, so nothing at all was saved.
+
+    The counterpart to the post-after-push ordering (issue #40): once announcements
+    follow the push, a failed push means the participant hears nothing — and silence
+    after filing a claim reads exactly like success. This says otherwise.
+    """
+    return ("⚠️ Something went wrong on our side and **nothing was recorded** — your claims "
+            "and deadlines are exactly as they were before this. Nothing is held against you. "
+            "Please post the same command again in a few minutes; if it fails a second time "
+            "the organizers will pick it up from the run log.")
+
+
 def close_notice(author: str, held: list[str]) -> str:
     """Heads-up when someone closes a thread that still holds in-flight papers."""
     lst = ", ".join(f"`{p}`" for p in held)

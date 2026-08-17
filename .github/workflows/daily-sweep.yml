@@ -14,6 +14,9 @@ permissions:
   contents: write
   issues: write
 
+# Deliberately NOT jc-state-push. Sharing that group would give a 06:00 UTC cron a way
+# to cancel a participant's queued command; cross-workflow races are handled by the
+# rebase-retry loop below, which is the mechanism that actually works.
 concurrency:
   group: jc-daily-sweep
   cancel-in-progress: false
@@ -31,26 +34,44 @@ jobs:
           python-version: '3.10'
 
       - name: Run the sweep
+        id: sweep
         run: python scripts/sweep.py
 
-      - name: Post reminder / expiry comments, close emptied threads
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json, subprocess
-          for n in json.load(open("notifications.json")):
-              subprocess.run(["gh","issue","comment",str(n["issue"]),"--body",n["body"]], check=False)
-              # The comment above already says why; close without a second one.
-              if n.get("close"):
-                  subprocess.run(["gh","issue","close",str(n["issue"])], check=False)
-          PY
-
-      - name: Commit + push refreshed state
+      # PUSH BEFORE YOU SPEAK — the same discipline as issue-ops.yml (issue #40), and
+      # this one was the worse instance: a lost push dropped the `reminded` markers
+      # *after* the nudges had already gone out, so the identical reminder re-fired the
+      # next morning. Posting after the push makes "marker on origin" and "notification
+      # posted" the same event. sweep.run() regenerates notifications.json wholesale,
+      # never appends, so the re-applied run's list is the only one anybody sees.
+      - name: Commit + push refreshed state (rebase-retry loop)
+        id: push
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add claims docs/data/status.json docs/data/ranking.json
-          git diff --cached --quiet && { echo "no changes"; exit 0; }
+          branch="${GITHUB_REF#refs/heads/}"
+          paths="claims docs/data/status.json docs/data/ranking.json"
+          git add $paths
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
           git commit -m "jc: daily sweep $(date -u +%Y-%m-%d)"
-          git push origin HEAD:${GITHUB_REF#refs/heads/}
+          for i in 1 2 3 4 5; do
+            if git push origin "HEAD:$branch"; then exit 0; fi
+            echo "push rejected, rebasing (attempt $i)"
+            git fetch origin
+            # re-derives the markers AND notifications.json from the fetched tip
+            git reset --hard "origin/$branch"
+            python scripts/sweep.py
+            git add $paths
+            if git diff --cached --quiet; then
+              echo "::notice::sweep re-applied; nothing left to push"; exit 0
+            fi
+            git commit -m "jc: daily sweep $(date -u +%Y-%m-%d) (retry $i)"
+            sleep $((RANDOM % 5 + 1))
+          done
+          echo "::error::could not push sweep state after retries"; exit 1
+
+      # No failure() notice here: nothing was posted, there is no single addressee, and
+      # tomorrow's run repeats the whole thing.
+      - name: Post reminder / expiry comments, close emptied threads
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/announce.py sweep

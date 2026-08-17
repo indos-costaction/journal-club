@@ -8,6 +8,10 @@ name: Journal Club — tests
 # (seed_pool.py no longer reproduces docs/data/pool.json), and tests/test_pool.py asserts
 # against the published file — a book edited back into the pool is caught in review, not
 # after someone has claimed it.
+#
+# The path filter covers `.github/workflows/**`, not just this file: tests/test_workflows.py
+# lints the *other* workflows (push-before-announce, no inline `gh` side effects), and a
+# filter that ignored them would leave that lint unable to fire on the change it guards.
 
 on:
   push:
@@ -16,13 +20,13 @@ on:
       - 'scripts/**'
       - 'tests/**'
       - 'docs/data/pool.json'
-      - '.github/workflows/tests.yml'
+      - '.github/workflows/**'
   pull_request:
     paths:
       - 'scripts/**'
       - 'tests/**'
       - 'docs/data/pool.json'
-      - '.github/workflows/tests.yml'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:

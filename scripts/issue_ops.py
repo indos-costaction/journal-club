@@ -252,6 +252,12 @@ def handle_event(event: dict) -> dict:
                                     ((pool.get(i) or {}).get("modality") for i in claim["papers"])
                                     if m}
 
+    # Unconditional, even when every command was rejected — do not "optimise" this into
+    # `if out.ok:`. write_status() restamps `generated_at`, so a pure rejection still
+    # produces a diff, and that diff is the only thing that makes the workflow commit,
+    # attempt a push, and thereby discover it lost a race. Without it a rejection
+    # computed against stale state would take the "no state change" exit and be posted
+    # to the participant having never been checked against origin.
     state.save_claim(claim)
     claims = state.load_claims()
     state.write_status(pool, claims)

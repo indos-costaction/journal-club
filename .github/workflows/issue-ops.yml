@@ -16,8 +16,11 @@ permissions:
   contents: write
   issues: write
 
-# Serialise pushes from this workflow; do NOT cancel queued runs (each carries a
-# distinct user action). Real correctness comes from the rebase-retry loop below.
+# Queue pushes from this workflow; do NOT cancel queued runs (each carries a distinct
+# user action). This group is a contention/noise optimisation, NOT the correctness
+# mechanism: it demonstrably did not serialise issues #36 and #37 on 2026-07-31 (run
+# 30667267903 started 12 s before run 30667257761 finished). Correctness is the
+# rebase-retry loop plus the post-after-push ordering below.
 concurrency:
   group: jc-state-push
   cancel-in-progress: false
@@ -48,63 +51,71 @@ jobs:
           ORGANIZERS: ${{ vars.ORGANIZERS }}
         run: python scripts/issue_ops.py
 
-      - name: Post reply comment
-        if: hashFiles('comment.md') != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -s comment.md ]; then
-            gh issue comment "${{ github.event.issue.number }}" --body-file comment.md
-          fi
-
-      - name: Apply labels + assignee
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json, subprocess, os
-          a = json.load(open("actions.json"))
-          if not a["changed"]:
-              raise SystemExit(0)
-          n = str(a["issue"])
-          for lb in a["add_labels"]:
-              subprocess.run(["gh","issue","edit",n,"--add-label",lb], check=False)
-          for who in a["assignees"]:
-              subprocess.run(["gh","issue","edit",n,"--add-assignee",who], check=False)
-          PY
-
-      - name: Close the issue when nothing needs the participant's action
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python - <<'PY'
-          import json, subprocess
-          a = json.load(open("actions.json"))
-          if a.get("close"):
-              # body comes from scripts/messages.py — participant-facing prose is never
-              # authored here, so there is one place to keep it consistent
-              subprocess.run(["gh", "issue", "close", str(a["issue"]),
-                              "--comment", a.get("close_comment", "")], check=False)
-          PY
-
+      # ----------------------------------------------------------------------
+      # PUSH BEFORE YOU SPEAK — issue #40.
+      #
+      # The retry loop below re-applies the intent on top of the fetched tip, which
+      # REWRITES comment.md and actions.json. Everything that talks to the participant
+      # therefore runs AFTER this step. It did not, until 2026-08-17: on 2026-07-31 the
+      # first, discarded attempt told issue #37 "EEG-03 claimed — due 2026-08-12" while
+      # the attempt that actually landed had rejected the claim. claims/37.json still
+      # reads "papers": {}.
+      #
+      # Two invariants this ordering depends on, both easy to break by accident:
+      #   * issue_ops.main() rewrites BOTH artifacts on every invocation, including its
+      #     early returns — so the re-run always replaces them;
+      #   * both are git-ignored, so `git reset --hard` leaves them for the re-run to
+      #     overwrite rather than deleting them.
+      # ----------------------------------------------------------------------
       - name: Commit + push state (rebase-retry loop)
+        id: push
+        env:
+          # Read by the re-run below. In the step env rather than inline on the command,
+          # so a repo variable is never interpolated into a shell string.
+          ORGANIZERS: ${{ vars.ORGANIZERS }}
         run: |
           git config user.name  'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          # nothing to commit -> exit cleanly
+          branch="${GITHUB_REF#refs/heads/}"
           git add claims docs/data/status.json
-          if git diff --cached --quiet; then echo "no state change"; exit 0; fi
+          if git diff --cached --quiet; then
+            # handle_event took an early return (silent no-op, not-your-thread, missing
+            # consent): nothing to persist. There may still be a reply to post, and the
+            # announce step runs regardless of what this step decides.
+            echo "no state change"; exit 0
+          fi
           git commit -m "jc: issue #${{ github.event.issue.number }} state update"
           for i in 1 2 3 4 5; do
-            if git push origin HEAD:${GITHUB_REF#refs/heads/}; then exit 0; fi
+            if git push origin "HEAD:$branch"; then exit 0; fi
             echo "push rejected, rebasing (attempt $i)"
             git fetch origin
-            # re-apply intent on top of the freshly-fetched state, then re-commit
-            git reset --hard origin/${GITHUB_REF#refs/heads/}
-            ORGANIZERS='${{ vars.ORGANIZERS }}' python scripts/issue_ops.py
+            # re-apply intent on the fetched tip; this also regenerates comment.md
+            git reset --hard "origin/$branch"
+            python scripts/issue_ops.py
             git add claims docs/data/status.json
-            git diff --cached --quiet && exit 0
+            if git diff --cached --quiet; then
+              echo "::notice::re-applied intent is already on origin; nothing left to push"
+              exit 0
+            fi
             git commit -m "jc: issue #${{ github.event.issue.number }} state update (retry $i)"
             sleep $((RANDOM % 5 + 1))
           done
           echo "::error::could not push state after retries"; exit 1
+
+      # Only now do comment.md and actions.json describe what is on origin/main. This
+      # step carries no `if:` on purpose — the default success() guard is what skips it
+      # when the push failed. Do not "fix" that with `if: always()`.
+      - name: Announce — comment, labels, close
+        id: announce
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/announce.py issue-ops
+
+      # Gated on the push specifically, not on failure() alone: an apply-step crash may
+      # leave no actions.json and may not even be a claim thread, and apologising on
+      # someone's bug report would be worse than saying nothing.
+      - name: Tell the participant nothing was recorded
+        if: failure() && steps.push.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/announce.py failed
