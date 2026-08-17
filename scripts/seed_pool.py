@@ -10,6 +10,16 @@ same ids as long as the source data is unchanged, because the sort key is
 
 The pool holds two levels: level-0 seed reviews (``<PREFIX>-R1``…) and the
 level-1 first-generation reading pool (``<PREFIX>-01``…). No PDFs — DOI/link only.
+
+Ids are assigned over the *whole* ranked list; ``screen()`` then removes retired
+ids and out-of-scope records (``params.RETIRED`` / ``params.in_scope``). Filtering
+after numbering is deliberate — it is what stops a removal from renumbering every
+paper below it onto the wrong claim.
+
+**This script does not currently reproduce the published pool** (the curated
+``references/lit-db/`` has grown since the first harvest). Treat a re-run as a new
+generation to be reconciled against ``docs/data/pool.json``, never as a refresh to
+overwrite it with.
 """
 from __future__ import annotations
 
@@ -17,6 +27,7 @@ import argparse
 import json
 from pathlib import Path
 
+import params
 from params import MODALITY_ORDER, MODALITY_PREFIX, NO_SEED_MODALITIES
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +62,27 @@ def record(item: dict, pool_id: str, level: int) -> dict:
 def _on_topic(item: dict) -> bool:
     # drop only items the modality audit explicitly marked off-topic; absent = kept
     return item.get("on_topic", True) is not False
+
+
+def screen(pool: list[dict]) -> tuple[list[dict], list[tuple[str, str]]]:
+    """Drop retired ids and out-of-scope records. Returns (kept, [(id, why)]).
+
+    Runs **after** id assignment, never before: ids are frozen once published
+    (``params.RETIRED``), so removing an entry must not renumber the ones below
+    it. The resulting gaps are intentional — they are how a withdrawn id stays
+    withdrawn instead of silently landing on a different paper.
+    """
+    kept, dropped = [], []
+    for rec in pool:
+        why = params.RETIRED.get(rec["id"])
+        if why is None:
+            ok, reason = params.in_scope(rec)
+            why = None if ok else reason
+        if why is None:
+            kept.append(rec)
+        else:
+            dropped.append((rec["id"], why))
+    return kept, dropped
 
 
 def build_pool(source: Path) -> list[dict]:
@@ -104,16 +136,21 @@ def main() -> None:
             "Run this once from the my-grants monorepo, or pass --source explicitly."
         )
 
-    pool = build_pool(args.source)
+    pool, dropped = screen(build_pool(args.source))
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(pool, indent=2, ensure_ascii=False) + "\n")
+
+    # Never drop silently: an unreported exclusion reads as "nothing was excluded".
+    for pid, why in dropped:
+        print(f"  dropped {pid}: {why}")
 
     levels = {0: 0, 1: 0}
     for p in pool:
         levels[p["level"]] += 1
     print(f"wrote {args.out} — {len(pool)} papers "
           f"({levels[1]} reading-pool + {levels[0]} seed reviews) across "
-          f"{len({p['modality'] for p in pool})} modalities")
+          f"{len({p['modality'] for p in pool})} modalities"
+          + (f"; {len(dropped)} dropped (see above)" if dropped else ""))
 
 
 if __name__ == "__main__":

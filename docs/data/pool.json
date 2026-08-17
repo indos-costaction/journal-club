@@ -78,32 +78,6 @@
     "citation_count": 9986
   },
   {
-    "id": "EEG-03",
-    "modality": "EEG",
-    "level": 1,
-    "title": "An Introduction To The Event Related Potential Technique",
-    "first_author": "M. Schmid",
-    "year": 2016,
-    "doi": null,
-    "url": "https://www.semanticscholar.org/paper/9e5b770b38f90bb8a63ebab655450646d0ead81f",
-    "venue": "",
-    "s2_id": "9e5b770b38f90bb8a63ebab655450646d0ead81f",
-    "citation_count": 3719
-  },
-  {
-    "id": "EEG-04",
-    "modality": "EEG",
-    "level": 1,
-    "title": "Electric Fields of the Brain: The Neurophysics of EEG",
-    "first_author": "J. Fermaglich",
-    "year": 1982,
-    "doi": "10.1001/jama.1982.03320380071046",
-    "url": "https://doi.org/10.1001/jama.1982.03320380071046",
-    "venue": "",
-    "s2_id": "cb3432a86fda80bacfa9b3389e732057df6f7a9a",
-    "citation_count": 2760
-  },
-  {
     "id": "EEG-05",
     "modality": "EEG",
     "level": 1,
@@ -128,32 +102,6 @@
     "venue": "Journal of Neural Engineering",
     "s2_id": "0c8ce4f11c00c78b04151d2526a812008ca7a764",
     "citation_count": 1970
-  },
-  {
-    "id": "EEG-07",
-    "modality": "EEG",
-    "level": 1,
-    "title": "An Introduction to the Event-Related Potential Technique",
-    "first_author": "S. Luck",
-    "year": 2005,
-    "doi": null,
-    "url": "https://www.semanticscholar.org/paper/0f7c69f6e998025208af0ae7f786b53bea644162",
-    "venue": "",
-    "s2_id": "0f7c69f6e998025208af0ae7f786b53bea644162",
-    "citation_count": 1918
-  },
-  {
-    "id": "EEG-08",
-    "modality": "EEG",
-    "level": 1,
-    "title": "Analyzing Neural Time Series Data: Theory and Practice",
-    "first_author": "Michael X. Cohen",
-    "year": 2014,
-    "doi": null,
-    "url": "https://www.semanticscholar.org/paper/e919db71bdd077e14b38961a7a8846b807562187",
-    "venue": "",
-    "s2_id": "e919db71bdd077e14b38961a7a8846b807562187",
-    "citation_count": 1904
   },
   {
     "id": "EEG-09",
@@ -258,19 +206,6 @@
     "venue": "Journal of Neuroscience Methods",
     "s2_id": "d095d3669f238521c7d7b2113ab88e8e28916b86",
     "citation_count": 1038
-  },
-  {
-    "id": "EEG-17",
-    "modality": "EEG",
-    "level": 1,
-    "title": "The Oxford Handbook Of Event Related Potential Components",
-    "first_author": "W. Ziegler",
-    "year": 2016,
-    "doi": null,
-    "url": "https://www.semanticscholar.org/paper/04966264f604d011129306cc3699b30c792c26da",
-    "venue": "",
-    "s2_id": "04966264f604d011129306cc3699b30c792c26da",
-    "citation_count": 1014
   },
   {
     "id": "EEG-18",
@@ -1199,12 +1134,12 @@
     "id": "ANAT-04",
     "modality": "anatMRI",
     "level": 1,
-    "title": "Neurotechnique Whole Brain Segmentation: Automated Labeling of Neuroanatomical Structures in the Human Brain",
+    "title": "Whole Brain Segmentation: Automated Labeling of Neuroanatomical Structures in the Human Brain",
     "first_author": "B. Fischl",
     "year": 2002,
-    "doi": null,
-    "url": "https://www.semanticscholar.org/paper/2861c24bc829f963a594a5916a9ce9616b6486d7",
-    "venue": "",
+    "doi": "10.1016/S0896-6273(02)00569-X",
+    "url": "https://doi.org/10.1016/S0896-6273(02)00569-X",
+    "venue": "Neuron",
     "s2_id": "2861c24bc829f963a594a5916a9ce9616b6486d7",
     "citation_count": 8727
   },
@@ -3092,19 +3027,6 @@
     "venue": "IEEE Transactions on Medical Imaging",
     "s2_id": "0e8e79be5d6bfe509611f469a7f551f9c87fa1a1",
     "citation_count": 915
-  },
-  {
-    "id": "CROSS-25",
-    "modality": "Cross-modality",
-    "level": 1,
-    "title": "Image Segmentation",
-    "first_author": "F. Shih",
-    "year": 2007,
-    "doi": "10.1007/978-0-387-39940-9_1011",
-    "url": "https://doi.org/10.1007/978-0-387-39940-9_1011",
-    "venue": "Encyclopedia of Database Systems",
-    "s2_id": "abffc705d611f3b7451900e9e5a5b805907654d0",
-    "citation_count": 756
   },
   {
     "id": "CROSS-26",

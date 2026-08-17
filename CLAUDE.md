@@ -123,5 +123,14 @@ everywhere except the leaderboard.
   (`pool.json` / `claims/` / `ledger/`) and let the scripts recompute.
 - **Never commit** `comment.md`, `actions.json`, `notifications.json`, or `docs/data/site.json`.
 - Pool IDs are **frozen once published**. Do not re-run `seed_pool.py` in a way that re-sorts existing IDs;
-  a growth pass appends only.
+  a growth pass appends only. **`seed_pool.py` no longer reproduces `docs/data/pool.json`** — the curated
+  `references/lit-db/` has grown since the first harvest, so a re-run emits a *different, shorter* pool.
+  Treat it as a new generation to reconcile, never as a refresh to overwrite with. Between generations the
+  pool is maintained **by hand**, which is why `tests/test_pool.py` asserts against the published file.
+- **Pool scope: books, textbooks and handbooks are out** (`params.in_scope`, `params.RETIRED`). A pool entry
+  must be a paper-shaped unit — one argument, readable in a sitting, scorable by three reviewers against the
+  same rubric. The harvest ranks cited works by citation count and textbooks are cited enormously, so they
+  float to the top of every modality unless screened. Machine signature: **neither a DOI nor a venue** (S2
+  carries books as MAG records; genuine pre-DOI papers keep their venue). Retired ids are **never reused and
+  never renumbered** — `seed_pool.screen()` filters *after* id assignment, and the gaps are the record.
 - Grading crosses only the numeric scores into this repo — never the annotated PDF, never participant email.

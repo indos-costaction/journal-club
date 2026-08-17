@@ -73,6 +73,68 @@ MODALITY_ORDER = ["EEG", "MEG", "fMRI", "dMRI", "anatMRI", "PET", "SPECT", "CT",
 # Categories with no level-0 seed reviews — pooled flat from their members.
 NO_SEED_MODALITIES = {"Cross-modality"}
 
+# --- Pool scope: what may be a pool entry ----------------------------------
+# A pool entry must be a *paper-shaped* unit: one argument a trainee can read and
+# annotate in a sitting, and that three reviewers can score against the same rubric.
+#
+# **Books, textbooks and handbooks are out of scope.** Not a quality judgement —
+# they are excellent, and several are field-defining. They are the wrong *unit*:
+# a 400-page textbook has no single claim to contest, cannot be annotated end to
+# end against a 12-day clock, and does not fit any upload ceiling. Asking someone
+# to "review" one is asking for work the rubric cannot read.
+#
+# The pool is harvested by ranking cited works by citation count (seed_pool.py),
+# and textbooks are cited enormously, so they float to the top of every modality
+# unless something stops them. This is that something.
+#
+# Machine signature: Semantic Scholar carries books as MAG-derived records with
+# **neither a DOI nor a venue**. Real pre-DOI journal papers keep their venue
+# (e.g. the Journal of Nuclear Medicine entries in this pool), so requiring
+# "a DOI or a venue" separates the two without a title heuristic. It also catches
+# the *phantom* records that same ingest produces: a real book's title attached to
+# a wrong author and year, with a scraped junk abstract.
+#
+# Enforced at both ends: seed_pool.in_scope() at build time, and
+# tests/test_pool.py against the published pool.json.
+def in_scope(item: dict) -> tuple[bool, str]:
+    """(ok, reason). ``reason`` is empty when the item is in scope."""
+    has_doi = bool((item.get("doi") or "").strip())
+    has_venue = bool((item.get("venue") or "").strip())
+    if not has_doi and not has_venue:
+        return False, "no DOI and no venue — book/phantom signature"
+    return True, ""
+
+
+# Pool ids withdrawn after publication. An id is a permanent handle: it appears in
+# claim records, issue threads and the ledger, so a retired id is **never reused**
+# and never renumbered onto another paper. seed_pool.py assigns ids over the full
+# ranked list and drops these afterwards, which is what keeps every surviving id
+# stable; the gaps are the record that something was withdrawn.
+RETIRED = {
+    "EEG-03": "phantom duplicate of EEG-07 — Luck's ERP textbook re-ingested under a "
+              "wrong author (M. Schmid, 2016) with a scraped junk abstract",
+    "EEG-07": "textbook — out of scope (Luck, An Introduction to the ERP Technique)",
+    "EEG-08": "textbook — out of scope (Cohen, Analyzing Neural Time Series Data)",
+    "EEG-17": "handbook — out of scope, and misattributed (the Oxford Handbook of ERP "
+              "Components is Luck & Kappenman 2011, not W. Ziegler 2016)",
+    "EEG-04": "textbook — out of scope (Nunez, Electric Fields of the Brain). Entered "
+              "through a *review of* the book: the DOI is Fermaglich's one-page notice "
+              "in JAMA 247:1879, carrying the book's 2 760 citations. in_scope() cannot "
+              "see this — the record has a real DOI and a real venue",
+    "CROSS-25": "reference-work entry — out of scope (\"Image Segmentation\", Encyclopedia "
+                "of Database Systems). Same unit problem as a textbook: a survey entry "
+                "states consensus rather than making a claim a reviewer can contest",
+}
+
+# in_scope() catches records with no bibliographic identity at all. It does NOT catch a
+# book that entered through a *review of* the book (EEG-04), an encyclopedia entry, or a
+# textbook that happens to carry a chapter DOI — those look like ordinary articles.
+# Tried and rejected as a screen: "single page + high citation count". Journals that
+# number articles rather than paginate (J. Neural Eng., Sensors, Cancers) report one
+# page, so it flags a dozen legitimate reviews — including EEG-22, an actual submission.
+# Treat a new generation's book screening as a human pass over the ranked list, not a
+# solved problem.
+
 
 def weighted_score(axes):
     """Combine per-axis 0-5 scores into the weighted 0-5 score."""

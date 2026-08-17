@@ -1,0 +1,42 @@
+name: Journal Club — tests
+
+# The state engine has no staging environment: issue-ops, the daily sweep and grading
+# all mutate the live repo. So the suite runs here, on anything that can change
+# behaviour or the authoritative state it reads.
+#
+# It also runs on pull_request because the pool is hand-maintained between generations
+# (seed_pool.py no longer reproduces docs/data/pool.json), and tests/test_pool.py asserts
+# against the published file — a book edited back into the pool is caught in review, not
+# after someone has claimed it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'docs/data/pool.json'
+      - '.github/workflows/tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'tests/**'
+      - 'docs/data/pool.json'
+      - '.github/workflows/tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          # Matches the runtime the state workflows pin. Standard library only —
+          # there is nothing to install.
+          python-version: '3.10'
+      - name: Run the suite
+        run: python -m unittest discover -s tests -v

@@ -317,6 +317,39 @@ class TestIngestMatcher(unittest.TestCase):
             ("fu_x1", "my review.pdf"))
 
 
+class TestRetiredPaperOnALiveThread(Base):
+    """A thread may hold a claim on a paper since retired from the pool.
+
+    Retirement removes the entry from ``pool.json`` but never rewrites history, so
+    ``claim["papers"]`` can name an id the pool no longer has (this is live: #36 and
+    #38 still hold EEG-03 / EEG-08). Every command on that thread must keep working —
+    a lookup that assumes the pool still has it locks the participant out of
+    withdrawing, extending or confirming anything else on the same thread.
+    """
+
+    def _retire(self, pid):
+        pool = json.loads(state.POOL_FILE.read_text())
+        state.POOL_FILE.write_text(json.dumps([p for p in pool if p["id"] != pid]))
+
+    def test_claiming_another_paper_still_works(self):
+        self.claim_paper(PAPER)
+        self._retire(PAPER)
+        out = self.comment(f"/claim EEG-22")          # would KeyError on pool[PAPER]
+        self.assertEqual(self.rec("EEG-22")["state"], "active")
+
+    def test_withdrawing_the_retired_paper_still_works(self):
+        self.claim_paper(PAPER)
+        self._retire(PAPER)
+        self.comment(f"/withdraw {PAPER}")
+        self.assertEqual(self.rec(PAPER)["state"], "withdrawn")
+
+    def test_a_retired_paper_cannot_be_claimed_again(self):
+        self._retire(PAPER)
+        out = self.claim_paper(PAPER)
+        self.assertNotIn(PAPER, state.load_claims().get(ISSUE, {}).get("papers", {}))
+        self.assertIn("not a paper id in the pool", out["comment"])
+
+
 if __name__ == "__main__":
     import unittest.mock  # noqa: F401
     unittest.main()

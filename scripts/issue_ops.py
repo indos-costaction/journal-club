@@ -228,8 +228,13 @@ def handle_event(event: dict) -> dict:
         out.ok += r.ok
         out.rejected += r.rejected
         if cmd == "claim":
-            accepted_modalities |= {pool[i]["modality"] for i in claim["papers"]
-                                    if pool[i]["modality"]}
+            # pool.get, not pool[]: a thread may still hold a claim on an id that has
+            # since been retired from the pool (params.RETIRED). Those keep their claim
+            # records — the history is real — but they no longer carry a modality, and
+            # a KeyError here would take down every command on that thread.
+            accepted_modalities |= {m for m in
+                                    ((pool.get(i) or {}).get("modality") for i in claim["papers"])
+                                    if m}
 
     state.save_claim(claim)
     claims = state.load_claims()
