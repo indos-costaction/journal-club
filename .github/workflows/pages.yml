@@ -16,7 +16,8 @@ on:
   # also redeploy when those workflows finish — workflow_run fires on completion, not
   # on the bot commit, so it is not suppressed.
   workflow_run:
-    workflows: ["Journal Club — issue ops", "Journal Club — daily sweep", "Journal Club — grade a review"]
+    workflows: ["Journal Club — issue ops", "Journal Club — paper suggestions",
+                "Journal Club — daily sweep", "Journal Club — grade a review"]
     types: [completed]
   workflow_dispatch:
 

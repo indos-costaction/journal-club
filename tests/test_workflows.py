@@ -20,6 +20,7 @@ step in the wrong place — there is only one step that can speak, and it is aft
 """
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -113,6 +114,41 @@ class TestConcurrency(unittest.TestCase):
         for f in ("issue-ops.yml", "suggest-ops.yml", "grade.yml"):
             with self.subTest(workflow=f):
                 self.assertIn("group: jc-state-push", code(f))
+
+
+class TestEveryStateCommitReachesTheSite(unittest.TestCase):
+    """A workflow that commits under docs/data must be able to redeploy the site.
+
+    GitHub does not let a GITHUB_TOKEN commit fire the `push` event, so pages.yml also
+    listens on `workflow_run` of the workflows that make those commits — by NAME, in a
+    hand-kept list. suggest-ops.yml was added and the list was not, so the first accepted
+    paper landed in pool.json on main and the live site went on serving 239 papers with no
+    error anywhere. Found on the live check, issue #46.
+
+    Derived from the files rather than hard-coded, so a fifth workflow cannot repeat it.
+    """
+
+    def writers(self) -> dict[str, str]:
+        """{workflow file: its `name:`} for every workflow that stages docs/data."""
+        out = {}
+        for f in sorted(WORKFLOWS.glob("*.yml")):
+            t = code(f.name)
+            if "git add" in t and "docs/data" in t:
+                out[f.name] = re.search(r"^name:\s*(.+)$", t, re.MULTILINE).group(1).strip()
+        return out
+
+    def test_the_writers_are_the_ones_we_think(self):
+        """A canary: if this list changes, the assertion below is checking something new."""
+        self.assertEqual(sorted(self.writers()),
+                         ["daily-sweep.yml", "grade.yml", "issue-ops.yml", "suggest-ops.yml"])
+
+    def test_each_one_can_trigger_a_redeploy(self):
+        pages = code("pages.yml")
+        for f, name in self.writers().items():
+            with self.subTest(workflow=f):
+                self.assertIn(f'"{name}"', pages,
+                              f"{f} commits to docs/data but pages.yml does not listen "
+                              f"for it, so its changes never reach the live site")
 
 
 class TestTheTwoEnginesCannotSeeEachOther(unittest.TestCase):
