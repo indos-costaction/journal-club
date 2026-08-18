@@ -147,6 +147,21 @@ RETIRED = {
                 "states consensus rather than making a claim a reviewer can contest",
 }
 
+# Papers proposed for the pool and turned down, keyed by lowercase DOI. RETIRED's sibling:
+# that one is about ids already published, this one about papers that never got one.
+#
+# It exists so a decision is made once. Suggestions arrive from many people who cannot see
+# each other's, so without a record the same textbook comes back every few months and costs
+# an organizer the same ten minutes. suggest_ops.py answers a re-proposal from here instead
+# of routing it to a human again.
+#
+# Hand-edited, like RETIRED and for the same reason: the entry IS the reason, and a reason
+# has to be written by a person. `/accept-paper` automates the yes; there is deliberately no
+# command that writes this, because that would be an Action editing source code.
+DECLINED: dict[str, str] = {
+    # "10.5555/example": "textbook — out of scope, wrong unit (proposed on #52)",
+}
+
 # in_scope() catches records with no bibliographic identity at all. It does NOT catch a
 # book that entered through a *review of* the book (EEG-04), an encyclopedia entry, or a
 # textbook that happens to carry a chapter DOI — those look like ordinary articles.

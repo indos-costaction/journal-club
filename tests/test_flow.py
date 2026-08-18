@@ -509,7 +509,10 @@ class TestCatalogue(unittest.TestCase):
                   days=3, n=1, cap=3, left=2, note="", tail="", verb="is",
                   slots="that slot frees", url="https://example.org", up="…", ext="",
                   when="3 days and 1 day", papers="`EEG-15`", cmd="received",
-                  attestation="…", no_ai="…", followup="…")
+                  attestation="…", no_ai="…", followup="…",
+                  # paper suggestions (suggest_ops)
+                  doi="10.1000/x", why="out of scope", cite="A paper · Venue · 2020",
+                  title="A paper", modality="EEG", modalities="`EEG`", args="`EGG`")
 
     def test_every_entry_renders(self):
         """A placeholder nobody supplies would post a half-rendered sentence."""
@@ -555,7 +558,9 @@ class TestCatalogue(unittest.TestCase):
     def test_every_entry_is_reachable_from_the_code(self):
         """An entry nothing renders is prose that silently does nothing."""
         import prose
-        used = "\n".join(Path(m.__file__).read_text() for m in (messages, state))
+        import suggest_ops
+        used = "\n".join(Path(m.__file__).read_text()
+                         for m in (messages, state, suggest_ops))
         orphans = sorted(k for k in prose.TEXT if f'"{k}"' not in used)
         # keys built dynamically, so grep cannot see them
         dynamic = {"claim_confirmation.welcome", "claim_confirmation.refused",

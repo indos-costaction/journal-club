@@ -174,7 +174,7 @@ def _read(path: Path, default: str = "") -> str:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("mode", choices=("issue-ops", "sweep", "failed"))
+    ap.add_argument("mode", choices=("issue-ops", "suggest-ops", "sweep", "failed"))
     args = ap.parse_args(argv)
 
     actions = json.loads(_read(ACTIONS_FILE, "{}") or "{}")
@@ -191,10 +191,18 @@ def main(argv: list[str] | None = None) -> int:
         return execute([["gh", "issue", "comment", str(issue),
                          "--body", messages.not_recorded()]])
 
-    if args.mode == "issue-ops":
+    # Each mode gets its own branch rather than sharing the `else`: a new mode added to
+    # `choices` without one here would silently fall through to the sweep reader and
+    # announce an empty notification list, which looks exactly like "nothing to say".
+    if args.mode in ("issue-ops", "suggest-ops"):
+        # suggest_ops.py writes the same two artifacts in the same shape, so the reader
+        # is shared. The modes stay distinct because the workflows are, and because a
+        # future divergence should not need this line rewritten under pressure.
         intents = from_issue_ops(actions, _read(COMMENT_FILE))
-    else:
+    elif args.mode == "sweep":
         intents = from_sweep(json.loads(_read(NOTIFICATIONS_FILE, "[]") or "[]"))
+    else:
+        raise AssertionError(f"unhandled mode {args.mode!r}")
 
     return execute(plan(intents, closed_issues({i.issue for i in intents if i.close})))
 

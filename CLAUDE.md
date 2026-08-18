@@ -50,6 +50,20 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
   real files. Export the responses with **question-code headings**, not question text, or
   `uploads_from_csv` will refuse. A response whose upload cell is blank carried no file and is
   counted, not reported per row (`has_file`).
+- `suggest_ops.py` — the pool's counterpart to `issue_ops.py`, and deliberately a separate engine:
+  that one moves claim state, this one moves the pool. Triages a `paper-suggestion` issue when it is
+  filed (one verdict per DOI/PMID: already in the pool, retired, previously declined, or new) and
+  applies an organizer's **`/accept-paper [<doi>] [<modality>]`** comment by appending to `pool.json`.
+  **Triage survives having no network** — duplicate/retired/declined are lookups on the identifier
+  string, so they are local and pure; Crossref only supplies the citation echo, and when it is
+  unreachable the verdicts still land and the reply says so. **Accept refuses rather than half-adds**:
+  a record with no title would need a *retirement* to undo, not an edit. Accepting is idempotent
+  because the rebase-retry loop re-runs it. It never claims a paper is in scope — `in_scope()` cannot
+  see a textbook that entered through a review of the book (EEG-04), so scope stays a human call.
+- `pool.py` — organizer digest, **read-only**: `review` lists the open suggestions with per-identifier
+  verdicts, including the same DOI proposed on two threads, which the open-time bot cannot see.
+  Adding happens on the thread; there is one writer to `pool.json`, for the same reason `intake.py`
+  posts `/received` instead of editing `claims/`.
 - `sweep.py` — daily: expire overdue claims (auto-withdraw, no penalty), fire day-9/day-11 reminders,
   refresh `status.json` + `ranking.json`. Reads **absolute timestamps**, so a skipped day self-heals.
   Per-paper `reminded` markers guarantee each nudge fires once.
@@ -143,7 +157,9 @@ everywhere except the leaderboard.
   repoints `state`'s module-level paths at it; **do not skip that** — `state.py` resolves its paths from
   `__file__`, so a test that forgets rewrites the live `claims/`. `tests/test_announce.py` asserts the
   `gh` argv `plan()` emits (pure, never shells out); `tests/test_workflows.py` lints the workflow YAML as
-  text (no PyYAML here) for the ordering property no unit test can reach; `tests/test_site.py` covers
+  text (no PyYAML here) for the ordering property no unit test can reach; `tests/test_suggest.py`
+  covers the suggestion engine (parsing, verdicts, offline degradation, the organizer gate, accept
+  idempotence, and that an id never lands in a retired gap); `tests/test_site.py` covers
   the derived site data (the two ladders, `reviews_in_flight`, and that `outstanding_need` stays graded-only)
   and lints the four files that independently spell out the progress vocabulary; `tests/test_pool.py` runs
   against the *published* pool.
@@ -174,7 +190,14 @@ everywhere except the leaderboard.
   Correctness is the retry loop plus the ordering above. It carries `queue: max` because the default
   `queue: single` **cancels a pending run** when a third arrives, losing a participant's command silently.
   `daily-sweep` is deliberately in its own group: sharing would let a 06:00 UTC cron cancel a queued command.
-- `issue-ops` ignores `github-actions[bot]` events to avoid reacting to its own comments/auto-close.
+- `issue-ops` and `suggest-ops` both ignore `github-actions[bot]` events to avoid reacting to their
+  own comments and auto-closes, and they are routed apart **in YAML** by the `paper-suggestion` label:
+  `issue-ops` skips those threads, `suggest-ops` takes only those. Until the suggestion form existed
+  the sole label check lived in `issue_ops.py`, so every issue in the repo started the claim engine
+  and was saved only by its body carrying no slash-command token — thin, because `_detect_consent`
+  reads any `- [x]` as GDPR consent and `_detect_attribution` reads "anonymous" as an attribution
+  choice. That is how #26 answered a bug report quoting `FMRI-01` with a consent rejection.
+  `tests/test_workflows.py::TestTheTwoEnginesCannotSeeEachOther` pins both guards and the form.
 - `pages.yml` regenerates `site.json` at build time and redeploys. Because `GITHUB_TOKEN` commits can't
   trigger a `push` event (GitHub loop-prevention), it **also** listens on `workflow_run: completed` of the
   three state workflows — that's how a bot state-commit reaches the site.
@@ -194,6 +217,11 @@ everywhere except the leaderboard.
   with `gh variable list`; `tests/test_flow.py::TestOrganizerRoster` pins the semantics, including
   that no handle is baked into the source. Set it locally too when running `issue_ops.py` by hand.
 - **Settings → Pages → Source = "GitHub Actions"**, or `pages.yml` deploys nothing.
+- **A `paper-suggestion` label must exist**: `gh label create paper-suggestion --color 0E8A16
+  --description "a proposed addition to the paper pool"`. It is what routes a thread to
+  `suggest-ops.yml` **and** what keeps `issue-ops.yml` off it, so without the label a suggestion
+  is silently handled by the claim engine instead. The issue form applies it at creation, so the
+  label has to exist before the first suggestion, not after.
 - **A `needs-organizer` label must exist**: `gh label create needs-organizer --color B60205
   --description "a claimant declined an upload"`. It is the only thing in the system that asks an
   organizer to look at a thread, and `announce.py` treats a failed `gh issue edit --add-label` as a

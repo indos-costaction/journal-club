@@ -291,3 +291,83 @@ sent a file. Your `/confirm` here is what puts your name on the review — and o
 declaration. It's one comment, and we ask for it; you don't have to remember it.
 
 Then we grade it against the [rubric]({SITE_URL}participate.html#how-to-review-a-paper).
+
+## suggest.heading
+Thanks for the suggestion. Here is what we already know about each one:
+
+| you sent | what we found |
+|---|---|
+
+## suggest.next_steps
+An organizer will check the ones we do not hold yet against the pool's scope rule: a pool entry has to be a paper-shaped unit, one argument a reader can annotate in a sitting and three reviewers can score against the same rubric, which is why textbooks and handbooks stay out.
+
+Nothing is needed from you meanwhile.
+
+## suggest.nothing_new
+We already hold or have already considered everything here, so there is nothing further to do. Closing shortly.
+
+## suggest.nothing_resolvable
+None of these resolved to a DOI or a PMID, so there is nothing we can look up. Edit the issue to add one per line and we will pick it up automatically.
+
+## suggest.nothing_found
+We could not find a DOI or a PMID anywhere in this issue. Edit it to add one per line and we will pick it up automatically.
+
+## verdict.known
+already in the pool as **{pid}**
+
+## verdict.retired
+withdrawn as **{pid}** — {why}
+
+## verdict.declined
+considered before and not added — {why}
+
+## verdict.unresolvable
+not a DOI or PMID we can resolve
+
+## verdict.new
+not in the pool — {cite}
+
+## verdict.new_unresolved
+not in the pool. We could not reach the metadata service just now, so the citation is unconfirmed; the rest of this table stands.
+
+## accept.header
+@{who} —
+
+## accept.added
+**{pid}** — [{title}]({url}) — added to {modality}.
+
+## accept.already_added
+`{raw}` — in the pool as **{pid}**. Nothing to do.
+
+## accept.retired
+`{raw}` — this is **{pid}**, withdrawn from the pool. Retired ids are never reused, so re-adding it needs a new id and a deliberate decision.
+
+## accept.previously_declined
+`{raw}` — considered before and not added: {why}. Remove it from `DECLINED` in `scripts/params.py` first if that has changed.
+
+## accept.unresolvable
+`{raw}` — no DOI or PMID here to work with.
+
+## accept.no_modality
+`{raw}` — no modality. The proposer did not pick one, so name it on the command: `/accept-paper {modalities}`.
+
+## accept.lookup_failed
+`{raw}` — could not fetch the metadata. Nothing was added; run the command again in a minute. (A pool entry with no title would need a retirement to undo, not an edit.)
+
+## accept.out_of_scope
+`{raw}` — {why}.
+
+## accept.unknown_argument
+{args} is neither a DOI nor a modality. Modalities are: {modalities}.
+
+## accept.not_on_thread
+`{doi}` is not one of the identifiers on this thread.
+
+## accept.nothing_to_do
+Nothing on this thread to add.
+
+## accept.organizers_only
+`/accept-paper` — organizers only. @{actor} is not on the roster.
+
+## accept.closing
+Everything on this thread is resolved, so we are closing it. Thanks for the suggestion.

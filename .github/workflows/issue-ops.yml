@@ -32,8 +32,20 @@ concurrency:
 
 jobs:
   dispatch:
-    # never react to the bot's own actions (its comments, its auto-close on withdraw)
-    if: github.actor != 'github-actions[bot]'
+    # Two guards. The first: never react to the bot's own actions (its comments, its
+    # auto-close on withdraw).
+    #
+    # The second: paper suggestions belong to suggest-ops.yml, and this engine must never
+    # see one. Until the suggestion form existed, the ONLY label check lived in
+    # issue_ops.py, so every issue in the repo started the claim engine and was saved
+    # solely by its body containing no slash-command token. That is thin: _detect_consent
+    # reads any `- [x]` in the body as GDPR consent and _detect_attribution reads the word
+    # "anonymous" as an attribution choice, which is how #26 answered a bug report quoting
+    # "FMRI-01" with a consent rejection. Filtering here makes the separation structural
+    # rather than a property of what someone happened to type.
+    if: >-
+      github.actor != 'github-actions[bot]'
+      && !contains(github.event.issue.labels.*.name, 'paper-suggestion')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

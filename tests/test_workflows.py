@@ -51,16 +51,25 @@ def step(name: str, marker: str) -> str:
     return "\n".join(lines[start:end])
 
 
-class TestPushBeforeAnnounce(unittest.TestCase):
-    def test_issue_ops_pushes_before_it_announces(self):
-        t = code("issue-ops.yml")
-        self.assertLess(t.index("git push origin"), t.index("announce.py issue-ops"),
-                        "issue-ops announces before it pushes — that is issue #40")
+# Every workflow that mutates state, pushes, and then speaks. A table rather than a test
+# per file: the point of these assertions is that they apply to the *class* of workflow,
+# and a fourth one added without a row here would inherit none of them.
+#
+#   file, announce mode, python entrypoint, shares the push group
+STATE_WORKFLOWS = (
+    ("issue-ops.yml",   "issue-ops",   "scripts/issue_ops.py",   True),
+    ("suggest-ops.yml", "suggest-ops", "scripts/suggest_ops.py", True),
+    ("daily-sweep.yml", "sweep",       "scripts/sweep.py",       False),
+)
 
-    def test_daily_sweep_pushes_before_it_announces(self):
-        t = code("daily-sweep.yml")
-        self.assertLess(t.index("git push origin"), t.index("announce.py sweep"),
-                        "the sweep announces before it pushes — reminders will re-fire")
+
+class TestPushBeforeAnnounce(unittest.TestCase):
+    def test_every_state_workflow_pushes_before_it_announces(self):
+        for f, mode, _entry, _shared in STATE_WORKFLOWS:
+            with self.subTest(workflow=f):
+                t = code(f)
+                self.assertLess(t.index("git push origin"), t.index(f"announce.py {mode}"),
+                                f"{f} announces before it pushes — that is issue #40")
 
     def test_no_gh_side_effects_are_inlined_in_a_workflow(self):
         """Every participant-facing call goes through announce.py, where it is
@@ -92,7 +101,7 @@ class TestConcurrency(unittest.TestCase):
     def test_the_push_group_queues_rather_than_cancelling(self):
         """`queue: single` (the default) cancels a *pending* run when a third arrives —
         a participant's command vanishing with no comment and no error."""
-        for f in ("issue-ops.yml", "grade.yml"):
+        for f in ("issue-ops.yml", "suggest-ops.yml", "grade.yml"):
             with self.subTest(workflow=f):
                 self.assertIn("queue: max", code(f))
 
@@ -101,16 +110,57 @@ class TestConcurrency(unittest.TestCase):
         self.assertNotIn("group: jc-state-push", code("daily-sweep.yml"))
 
     def test_the_state_workflows_do_share_the_push_group(self):
-        for f in ("issue-ops.yml", "grade.yml"):
+        for f in ("issue-ops.yml", "suggest-ops.yml", "grade.yml"):
             with self.subTest(workflow=f):
                 self.assertIn("group: jc-state-push", code(f))
 
 
+class TestTheTwoEnginesCannotSeeEachOther(unittest.TestCase):
+    """Claims and pool suggestions are routed apart in YAML, not by what people type.
+
+    Until the suggestion form existed the only label check was inside issue_ops.py, so
+    every issue in the repo started the claim engine and was saved solely by its body
+    carrying no slash-command token. issue_ops scans the whole rendered body — any
+    `- [x]` reads as GDPR consent, the word "anonymous" reads as an attribution choice —
+    which is how #26 answered a bug report with a consent rejection.
+    """
+
+    def test_the_claim_engine_skips_suggestion_threads(self):
+        self.assertIn("!contains(github.event.issue.labels.*.name, 'paper-suggestion')",
+                      code("issue-ops.yml"))
+
+    def test_the_suggestion_engine_takes_only_suggestion_threads(self):
+        self.assertIn("contains(github.event.issue.labels.*.name, 'paper-suggestion')",
+                      code("suggest-ops.yml"))
+
+    def test_neither_reacts_to_the_bot(self):
+        """Without this the triage comment re-triggers the workflow that wrote it."""
+        for f in ("issue-ops.yml", "suggest-ops.yml"):
+            with self.subTest(workflow=f):
+                self.assertIn("github.actor != 'github-actions[bot]'", code(f))
+
+    def test_the_suggestion_form_cannot_be_read_as_a_claim(self):
+        """Belt and braces for the YAML guard above, which is one edit from gone.
+
+        The checkbox rule targets the FIELD TYPE, not a rendered `- [x]`: the form never
+        contains one, GitHub renders it from `type: checkboxes` when the issue is filed,
+        and it is that rendered body issue_ops scans.
+        """
+        form = (WORKFLOWS.parent / "ISSUE_TEMPLATE" / "paper-suggestion.yml").read_text()
+        body = "\n".join(ln for ln in form.splitlines() if not ln.lstrip().startswith("#"))
+        self.assertNotIn("type: checkboxes", body,
+                         "renders as `- [x]`, which _detect_consent reads as GDPR consent")
+        self.assertNotRegex(body, r"-\s*\[x\]", "a ticked box reads as GDPR consent")
+        self.assertNotIn("anonymous", body.lower(), "reads as an attribution choice")
+        self.assertNotRegex(
+            body, r"/(claim|withdraw|submit|received|confirm|reject|extend|decline)\s",
+            "a claim command in the form body would be parsed as one")
+
+
 class TestRetryLoops(unittest.TestCase):
-    def test_both_state_workflows_re_apply_intent_on_a_lost_push(self):
+    def test_every_state_workflow_re_applies_intent_on_a_lost_push(self):
         """Re-applying beats replaying a diff, and it is what regenerates comment.md."""
-        for f, entrypoint in (("issue-ops.yml", "scripts/issue_ops.py"),
-                              ("daily-sweep.yml", "scripts/sweep.py")):
+        for f, _mode, entrypoint, _shared in STATE_WORKFLOWS:
             with self.subTest(workflow=f):
                 t = read(f)
                 self.assertIn("push rejected, rebasing", t)

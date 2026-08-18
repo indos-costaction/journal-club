@@ -43,7 +43,7 @@
     <div class="container hero-inner">
       <p class="hero-kicker">INDoS COST Action WG3 · Automated Preprocessing Pipelines</p>
       <h1 id="hero-title">Federated Journal Club</h1>
-      <p class="hero-tagline">239 papers. 10 imaging modalities. <br />
+      <p class="hero-tagline"><span class="pool-size">239</span> papers. 10 imaging modalities. <br />
            A crowdsourced endeavor to map the neuroimaging literature on preprocessing.</p>
 
       <!-- One tile per paper, coloured by reading progress; filled in by app.js from status.json. -->
@@ -81,7 +81,7 @@
         <a href="https://www.indos-costaction.eu/wg3">Working Group 3 — Automated Preprocessing
         Pipelines</a>. Summer is when labs quieten, supervisors travel, and trainee projects stall.
         So we spend it reading: participants collectively read and critically annotate a curated
-        pool of <strong>239 preprocessing papers</strong> spanning nine imaging modalities plus a
+        pool of <strong><span class="pool-size">239</span> preprocessing papers</strong> spanning nine imaging modalities plus a
         cross-modality methods category. Between us we build a critically-read map of the field
         that no single lab could assemble alone.</p>
 
@@ -141,7 +141,11 @@
     <div class="container">
       <div class="papers-head">
         <h2>Paper pool &amp; leaderboard</h2>
-        <a id="claimTop" class="btn btn-primary" href="#">Claim papers on GitHub</a>
+        <div class="head-actions">
+          <a id="claimTop" class="btn btn-primary" href="#">Claim papers on GitHub</a>
+          <!-- href filled by app.js, which knows the repo slug from site.json -->
+          <a class="btn btn-quiet suggest-link" href="#" target="_blank" rel="noopener">Suggest a paper</a>
+        </div>
       </div>
 
       <div id="progress" class="progress" hidden>

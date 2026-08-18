@@ -369,6 +369,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .btn-primary:hover { background: #e8a23a; }
 .btn-ghost { border: 2px solid rgba(255, 255, 255, 0.75); color: #fff; }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+/* Secondary action on a light band — btn-ghost is the navy-hero variant and would be
+   invisible here. Quieter than btn-primary on purpose: claiming is the ask, suggesting
+   is the afterthought that should still be one click away. */
+.btn-quiet { border: 1px solid var(--line); color: var(--logo-blue); background: var(--surface); }
+.btn-quiet:hover { background: var(--card); }
+.head-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
 
 /* Hero — flat brand navy, no gradient. */
 .hero { background: var(--logo-blue); color: #fff; text-align: center; padding: 4rem 0 2.5rem; }

@@ -1,0 +1,65 @@
+name: Suggest papers for the pool
+description: Propose one or more preprocessing papers to add to the Journal Club pool.
+# The `paper-suggestion` label is what routes this thread to scripts/suggest_ops.py, and
+# what keeps it AWAY from the claim engine: issue-ops.yml skips any issue carrying it.
+# Do NOT remove it — without it a suggestion is ignored, and worse, the claim engine sees it.
+#
+# Two things this form must never contain, both because issue_ops.py scans the whole
+# rendered body rather than named fields:
+#   * a ticked checkbox — `_detect_consent` reads any `- [x]` as GDPR consent;
+#   * the word "anonymous" — `_detect_attribution` reads it as an attribution choice.
+# Nor any /claim-style token matching issue_ops.CMD_RE. See #26.
+labels: ["paper-suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a preprocessing paper the pool is missing? Tell us here and a bot will check
+        it against the [current pool](https://www.indos-costaction.eu/journal-club/#papers)
+        within a minute.
+
+        A pool entry has to be **paper-shaped**: one argument, readable in a sitting, and
+        scorable by three reviewers against the same rubric. Textbooks, handbooks and
+        encyclopedia entries are excellent and are deliberately out, because there is no
+        single claim in them for a reviewer to contest.
+  - type: textarea
+    id: identifiers
+    attributes:
+      label: Papers
+      description: One DOI, PMID or publisher link per line. Anything else on the line is fine.
+      placeholder: |
+        10.1016/j.clinph.2014.05.014
+        PMID: 41692284
+        https://doi.org/10.3390/s23083979
+    validations:
+      required: true
+  - type: dropdown
+    id: modality
+    attributes:
+      label: Modality
+      description: Which part of the pool these belong to. Leave as "not sure" and an organizer will decide.
+      options:
+        - not sure
+        - EEG
+        - MEG
+        - fMRI
+        - dMRI
+        - anatMRI
+        - PET
+        - SPECT
+        - CT
+        - fNIRS
+        - Cross-modality
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it belongs
+      description: Optional. What it adds that the pool does not already cover.
+  - type: markdown
+    attributes:
+      value: |
+        You do not need to do anything after filing this. The bot replies with what it
+        found, and an organizer decides. If a paper is added you will see its new pool ID
+        on this thread.

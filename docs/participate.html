@@ -53,9 +53,12 @@
         required to claim and track papers on the <a href="./">paper pool and leaderboard</a>.</p>
 
       <h2>How claiming works</h2>
-      <p>We have curated a pool of <strong>239 preprocessing papers</strong> across nine
-        imaging modalities plus a <strong>cross-modality methods</strong> category, all listed
-        on the <a href="./">Board</a>.</p>
+      <!-- No paper count here on purpose: the pool grows whenever an organizer accepts a
+           suggestion, and this page does not load app.js, so a number written here would
+           be the one place on the site that goes stale. The Board shows the live count. -->
+      <p>We have curated a pool of preprocessing papers across nine imaging modalities plus
+        a <strong>cross-modality methods</strong> category, all listed on the
+        <a href="./">Board</a>.</p>
       <ol>
         <li><strong>Create a free GitHub account</strong> if you do not have one.</li>
         <li><strong>Browse the pool and claim papers</strong> from that list (maximum three
@@ -146,6 +149,18 @@
         claim it and repeated in every deadline reminder. The link carries the paper id with it,
         which is how your file is matched to your claim — so there is deliberately no generic
         upload link on this site, and a file sent any other way cannot be graded.</p>
+
+      <h2>Suggesting a paper</h2>
+      <p>The pool is not fixed. If something important is missing,
+        <a href="https://github.com/indos-costaction/journal-club/issues/new?template=paper-suggestion.yml">open
+        a suggestion</a> with the DOI or PMID, one per line. A bot replies within a minute
+        with what it found, including whether we already hold it, and an organizer decides.
+        You do not need to be taking part to suggest one.</p>
+      <p>One rule decides what can go in. A pool entry has to be <strong>paper-shaped</strong>:
+        one argument, readable in a sitting, and scorable by three reviewers against the same
+        rubric. Textbooks, handbooks and encyclopedia entries are out for that reason and not
+        on merit. Several are field-defining, but there is no single claim in them for a
+        reviewer to contest, which is what the whole exercise asks people to do.</p>
 
       <h2>Grading and the leaderboard</h2>
       <p>Each completed review is scored by the organizers against a transparent rubric, with

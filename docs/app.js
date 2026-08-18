@@ -23,6 +23,14 @@ function newIssueURL(p) {
   return `https://github.com/${REPO}/issues/new?${q}`;
 }
 
+// "The pool is missing a paper." Prefilling the search term is deliberate: the link is
+// offered from the empty-search state, where we already know what they were looking for.
+function suggestURL(term) {
+  const q = new URLSearchParams({ template: "paper-suggestion.yml" });
+  if (term) q.set("title", `Suggestion: ${term}`);
+  return `https://github.com/${REPO}/issues/new?${q}`;
+}
+
 const $ = sel => document.querySelector(sel);
 const el = (tag, props = {}, ...kids) => {
   const n = Object.assign(document.createElement(tag), props);
@@ -52,6 +60,10 @@ async function load() {
   // build-time slug from site.json is the authoritative repo (unless overridden)
   if (!window.JC_REPO && site && site.repo) REPO = site.repo;
   $("#claimTop").href = newIssueURL(null);
+  document.querySelectorAll(".suggest-link").forEach(a => { a.href = suggestURL(); });
+  // The pool grows whenever an organizer accepts a suggestion, so every count on the page
+  // is filled from pool.json rather than typed into the HTML and left to rot.
+  document.querySelectorAll(".pool-size").forEach(n => { n.textContent = POOL.length; });
   initModalities();
   applyFiltersFromURL();   // after the modality options exist, so they can be matched
   renderProgress();
@@ -285,7 +297,19 @@ function renderPool() {
       el("td", {}, statusBadge(s.status)),
       el("td", {}, action)));
   }
-  $("#poolCount").textContent = `${n} paper${n === 1 ? "" : "s"} shown of ${POOL.length}.`;
+  // A search that finds nothing is the moment someone learns the pool is missing their
+  // paper, and the only moment they are certain of it. Offer the form right there, with
+  // the term they typed carried into the issue title.
+  const count = `${n} paper${n === 1 ? "" : "s"} shown of ${POOL.length}.`;
+  const box = $("#poolCount");
+  if (n === 0 && q) {
+    box.replaceChildren(
+      el("span", { textContent: `Nothing matches “${q}”. ` }),
+      el("a", { href: suggestURL(q), target: "_blank", rel: "noopener",
+                textContent: "Suggest this paper for the pool →" }));
+  } else {
+    box.textContent = count;
+  }
 }
 
 function renderBoard() {

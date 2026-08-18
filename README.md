@@ -17,6 +17,7 @@ the public reads is a pure, idempotent recompute — so every Action is safe to 
 | Hand in a review | open that paper's **Upload link** and drop the annotated PDF | the link carries the claim key, so organizers' `intake.py` matches it and posts `/received <ID>` on your thread — which **stops the deadline clock** |
 | Sign it off | reply `/confirm <ID>` when the bot asks | it's graded against the 5-axis rubric and your score enters the leaderboard |
 | Refuse an upload | reply `/decline <ID> <why>` instead | for "that wasn't me" or "I want to send a new version" — the paper stays yours with the time that was left on its clock, and the declined file is never graded or re-attached |
+| Suggest a paper | open a **Suggest papers** issue with DOIs or PMIDs | a bot replies within a minute saying which we already hold, which were considered before, and which are new; an organizer accepts one with `/accept-paper [<doi>] [<modality>]` and the thread closes with the id it received |
 
 The upload form is open-access and its per-paper link is published in a public issue, so a file proves
 only that *someone* had the link — it cannot assert authorship. The claimant's `/confirm` is what makes
@@ -39,9 +40,10 @@ docs/                 GitHub Pages site (index.html + app.js) and the web-served
 claims/<issue>.json   AUTHORITATIVE dynamic truth — one file per claim issue
 ledger/<claim>.json   AUTHORITATIVE scores — one file per graded review
 scripts/              state.py (engine) · messages.md (ALL participant-facing prose — edit here)
+                      suggest_ops.py (paper suggestions + /accept-paper) · pool.py (review)
                       messages.py (assembly) · prose.py (catalogue loader) · seed_pool.py
                       issue_ops.py · sweep.py · intake.py · rank.py · grade.py · params.py
-.github/workflows/    issue-ops.yml · daily-sweep.yml · grade.yml
+.github/workflows/    issue-ops.yml · suggest-ops.yml · daily-sweep.yml · grade.yml
 RULES.md · HOWTO-claim.md · CONSENT.md
 ```
 
@@ -59,6 +61,8 @@ See [`RULES.md`](RULES.md).
    it is never committed).
 3. `Settings → Actions → General → Workflow permissions → Read and write`.
 4. Add repo **variable** `ORGANIZERS` = comma-separated GitHub handles (default: `oesteban,guiomarniso`).
+   Also create the two labels the bots need, which fail silently when missing:
+   `gh label create paper-suggestion --color 0E8A16` and `gh label create needs-organizer --color B60205`.
 5. Re-seed the pool if the lit-db changes: `python scripts/seed_pool.py --source /path/to/references/lit-db`.
 6. Build the LimeSurvey submission form (spec + runbook: `submission-form.md` in the WG3 initiative
    folder), then set `SUBMISSION_FORM_URL` in `scripts/params.py` — one constant, one commit, and every
@@ -89,6 +93,28 @@ public, and annotated PDFs are copyrighted derivatives *and* personal data.
 
 A review that breaks the rules is removed with `/reject <ID>` (organizers only), which works even after
 grading — `rank.py` follows the claim, so the score leaves the leaderboard with it.
+
+## Growing the pool (organizers)
+
+Anyone can propose a paper through the **Suggest papers** issue form. A bot triages it on arrival and
+an organizer answers on the thread:
+
+```bash
+python scripts/pool.py review        # what is waiting, incl. the same DOI proposed twice
+```
+
+```
+/accept-paper                          every new paper here, using the proposer's modality
+/accept-paper EEG                      same, but EEG for all of them
+/accept-paper 10.3390/s23083979 fNIRS  just that one
+```
+
+`pool.py` is **read-only**: accepting happens on the thread so the decision is a public record next to
+the suggestion, and so `docs/data/pool.json` keeps a single writer. Turning one down is closing the
+issue with a reason; add it to `params.DECLINED` if it should not come back.
+
+Pool ids are permanent handles — they appear in claim records, issue threads and the ledger — so a new
+paper always gets the next free number and **never** an id freed by a retirement.
 
 Grading, the annotated-PDF store, and the open-data deposit are documented in the WG3 initiative folder
 (`submission-form.md`, `copyright-and-data.md`, `grading-rubric.md`).

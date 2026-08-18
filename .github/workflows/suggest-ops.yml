@@ -1,0 +1,101 @@
+name: Journal Club — paper suggestions
+
+# The pool's counterpart to issue-ops.yml. Triages a suggestion when it is filed, and
+# applies an organizer's `/accept-paper` comment by appending to docs/data/pool.json.
+#
+# Kept in its own workflow rather than folded into issue-ops because the two move
+# different state: that one owns claims/, this one owns the pool. The label filter below
+# is what guarantees neither engine ever sees the other's threads.
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+# Shares jc-state-push with issue-ops and grade: all three commit and push to main, and
+# `queue: max` for the same reason as there — the default `queue: single` CANCELS a queued
+# run when a third arrives, which would silently lose an organizer's accept.
+concurrency:
+  group: jc-state-push
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    # Only suggestion threads, and never the bot's own comments. Both halves matter: the
+    # label is what routes work here, and without the actor guard the triage comment would
+    # re-trigger this workflow on itself.
+    if: >-
+      github.actor != 'github-actions[bot]'
+      && contains(github.event.issue.labels.*.name, 'paper-suggestion')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
+      - name: Triage the suggestion / apply /accept-paper
+        id: apply
+        env:
+          # REQUIRED repo variable, exactly as in issue-ops.yml. Unset renders as an empty
+          # string, which is an empty roster, and every /accept-paper is then refused with
+          # a message that reads like an ordinary permissions decision.
+          ORGANIZERS: ${{ vars.ORGANIZERS }}
+        run: python scripts/suggest_ops.py
+
+      # ----------------------------------------------------------------------
+      # PUSH BEFORE YOU SPEAK — issue #40, and it applies here too.
+      #
+      # Triage writes no state, so this step usually finds nothing staged and exits. An
+      # /accept-paper does write, and the retry loop below re-runs suggest_ops.py on the
+      # fetched tip, rewriting comment.md and actions.json. Announcing before the push
+      # could therefore report a pool id that never landed.
+      #
+      # Re-running is safe because accepting is idempotent: the pool is keyed by DOI, so a
+      # second apply finds the paper present and says "already added" instead of appending
+      # it twice. suggest_ops.main() rewrites both artifacts on every invocation including
+      # its early returns, and both are git-ignored so `git reset --hard` leaves them.
+      # ----------------------------------------------------------------------
+      - name: Commit + push the pool (rebase-retry loop)
+        id: push
+        env:
+          ORGANIZERS: ${{ vars.ORGANIZERS }}
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          branch="${GITHUB_REF#refs/heads/}"
+          git add docs/data/pool.json docs/data/status.json
+          if git diff --cached --quiet; then
+            echo "no pool change"; exit 0
+          fi
+          git commit -m "pool: accept from issue #${{ github.event.issue.number }}"
+          for i in 1 2 3 4 5; do
+            if git push origin "HEAD:$branch"; then exit 0; fi
+            echo "push rejected, rebasing (attempt $i)"
+            git fetch origin
+            git reset --hard "origin/$branch"
+            python scripts/suggest_ops.py
+            git add docs/data/pool.json docs/data/status.json
+            if git diff --cached --quiet; then
+              echo "::notice::re-applied intent is already on origin; nothing left to push"
+              exit 0
+            fi
+            git commit -m "pool: accept from issue #${{ github.event.issue.number }} (retry $i)"
+            sleep $((RANDOM % 5 + 1))
+          done
+          echo "::error::could not push the pool after retries"; exit 1
+
+      # No `if:` — the default success() guard is what skips this when the push failed.
+      - name: Announce — comment, labels, close
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/announce.py suggest-ops
