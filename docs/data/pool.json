@@ -416,6 +416,32 @@
     "citation_count": 49
   },
   {
+    "id": "EEG-34",
+    "modality": "EEG",
+    "level": 1,
+    "title": "Reliability of fully automated versus visually controlled pre- and post-processing of resting-state EEG",
+    "first_author": "F. Hatz",
+    "year": 2015,
+    "doi": "10.1016/j.clinph.2014.05.014",
+    "url": "https://doi.org/10.1016/j.clinph.2014.05.014",
+    "venue": "Clinical Neurophysiology",
+    "s2_id": "2b01d3b31622ed4173763aa8c8965b21188422cb",
+    "citation_count": 60
+  },
+  {
+    "id": "EEG-35",
+    "modality": "EEG",
+    "level": 1,
+    "title": "Standardizing EEG preprocessing for cross-site integration - the CLEAN pipeline",
+    "first_author": "Adriana Böttcher",
+    "year": 2026,
+    "doi": "10.1016/j.neuroimage.2026.121812",
+    "url": "https://doi.org/10.1016/j.neuroimage.2026.121812",
+    "venue": "NeuroImage",
+    "s2_id": "4b914bee38a570aab809e79e44d4acad4b3eba67",
+    "citation_count": 6
+  },
+  {
     "id": "MEG-R1",
     "modality": "MEG",
     "level": 0,
@@ -2715,6 +2741,19 @@
     "venue": "Journal of digital imaging",
     "s2_id": "990cd265a5e3112886803073d267988cb6f98bc8",
     "citation_count": 142
+  },
+  {
+    "id": "FNIRS-17",
+    "modality": "fNIRS",
+    "level": 1,
+    "title": "Improved Motion Artifact Correction in fNIRS Data by Combining Wavelet and Correlation-Based Signal Improvement",
+    "first_author": "Hayder R. Al-Omairi",
+    "year": 2023,
+    "doi": "10.3390/s23083979",
+    "url": "https://doi.org/10.3390/s23083979",
+    "venue": "Sensors",
+    "s2_id": "be0f93c3813445992f8b1745c321c6f8256b2414",
+    "citation_count": 17
   },
   {
     "id": "CROSS-01",
