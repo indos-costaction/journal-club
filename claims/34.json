@@ -8,7 +8,7 @@
   },
   "papers": {
     "FNIRS-R1": {
-      "state": "pending",
+      "state": "submitted",
       "claimed_at": "2026-07-18T11:01:03Z",
       "due_at": "2026-07-30T11:01:03Z",
       "extended": false,
@@ -17,7 +17,8 @@
         "pre3",
         "pre1"
       ],
-      "pending_since": "2026-08-17T16:06:56Z"
+      "pending_since": "2026-08-17T16:06:56Z",
+      "confirmed_at": "2026-08-18T14:30:46Z"
     }
   }
 }
