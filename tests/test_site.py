@@ -139,31 +139,31 @@ class TestPaperProgress(StatusBase):
     """The four buckets, at their boundaries."""
 
     def test_untouched_is_open(self):
-        self.assertEqual(state.paper_progress(live=0, completed=0), "open")
+        self.assertEqual(state.paper_progress(live=0, delivered=0), "open")
 
     def test_a_single_claimant_is_already_in_review(self):
         """The whole reason progress is not `status`: `status` would still say open."""
-        self.assertEqual(state.paper_progress(live=1, completed=0), "review")
-        self.assertEqual(state.paper_status(live=1, completed=0), "open")
+        self.assertEqual(state.paper_progress(live=1, delivered=0), "review")
+        self.assertEqual(state.paper_status(live=1, delivered=0), "open")
 
-    def test_one_graded_review_is_partial(self):
-        self.assertEqual(state.paper_progress(live=0, completed=1), "partial")
+    def test_one_confirmed_review_is_partial(self):
+        self.assertEqual(state.paper_progress(live=0, delivered=1), "partial")
 
     def test_one_short_of_the_threshold_is_still_partial(self):
         self.assertEqual(
-            state.paper_progress(live=0, completed=params.COMPLETION_THRESHOLD - 1),
+            state.paper_progress(live=0, delivered=params.COMPLETION_THRESHOLD - 1),
             "partial")
 
     def test_the_threshold_is_done(self):
         self.assertEqual(
-            state.paper_progress(live=0, completed=params.COMPLETION_THRESHOLD), "done")
+            state.paper_progress(live=0, delivered=params.COMPLETION_THRESHOLD), "done")
 
     def test_a_late_extra_claim_does_not_un_finish_a_paper(self):
         self.assertEqual(
-            state.paper_progress(live=1, completed=params.COMPLETION_THRESHOLD), "done")
+            state.paper_progress(live=1, delivered=params.COMPLETION_THRESHOLD), "done")
 
     def test_closed_to_claims_is_not_a_progress_state(self):
-        """Five claimants and nothing graded: unclaimable, and visibly not started."""
+        """Five claimants and nothing delivered: unclaimable, and visibly not started."""
         live = params.POOL_CLOSE_THRESHOLD
         self.assertEqual(state.paper_status(live, 0), "closed")
         self.assertEqual(state.paper_progress(live, 0), "review")
@@ -171,6 +171,16 @@ class TestPaperProgress(StatusBase):
     def test_withdrawing_the_only_claim_returns_the_tile_to_open(self):
         self.assertEqual(self.paper("active")["progress"], "review")
         self.assertEqual(self.paper("withdrawn")["progress"], "open")
+
+    def test_a_confirmed_review_moves_the_tile_without_waiting_for_a_grade(self):
+        """The change of 2026-08-18, at the level the visitor sees it.
+
+        Before it, `submitted` was in flight and this tile read `review` — which with an
+        empty ledger meant six delivered reviews rendered as an untouched pool.
+        """
+        self.assertEqual(self.paper("submitted")["progress"], "partial")
+        self.assertEqual(self.paper(*(["submitted"] * params.COMPLETION_THRESHOLD)
+                                    )["progress"], "done")
 
     def test_every_reachable_bucket_is_declared(self):
         """PROGRESS_STATES is what the site lint below enumerates; keep it honest."""
@@ -180,50 +190,102 @@ class TestPaperProgress(StatusBase):
         self.assertEqual(reachable, set(state.PROGRESS_STATES))
 
 
-class TestInFlightCounter(StatusBase):
-    """`reviews_in_flight`: uploads in hand, no grade yet."""
+class TestGradingDoesNotMoveTheBoard(StatusBase):
+    """Grading decides points. It is not what makes a review count.
 
-    def test_it_counts_uploaded_and_signed_off_work(self):
-        self.assertEqual(self.paper("pending", "submitted")["reviews_in_flight"], 2)
+    One assertion carries the whole change: the board a paper shows with three confirmed
+    reviews is the board it shows once those same three are scored.
+    """
 
-    def test_a_claim_with_no_upload_is_not_in_flight(self):
-        self.assertEqual(self.paper("active")["reviews_in_flight"], 0)
+    BOARD = ("live_claims", "reviews_confirmed", "reviews_awaiting_signoff",
+             "status", "progress", "outstanding_need")
 
-    def test_a_graded_review_has_landed_and_is_no_longer_in_flight(self):
-        p = self.paper("completed")
-        self.assertEqual(p["reviews_in_flight"], 0)
-        self.assertEqual(p["completed_reviews"], 1)
+    def test_scoring_a_review_changes_nothing_a_visitor_can_see(self):
+        for n in range(1, params.COMPLETION_THRESHOLD + 1):
+            with self.subTest(reviews=n):
+                confirmed = self.paper(*(["submitted"] * n))
+                graded = self.paper(*(["completed"] * n))
+                self.assertEqual({k: confirmed[k] for k in self.BOARD},
+                                 {k: graded[k] for k in self.BOARD})
+
+    def test_the_graded_count_is_the_one_thing_that_does_move(self):
+        """Published for the hover card and the under-served bonus; drives nothing."""
+        self.assertEqual(self.paper("submitted")["reviews_graded"], 0)
+        self.assertEqual(self.paper("completed")["reviews_graded"], 1)
+
+    def test_a_paper_closes_to_new_claims_on_confirmed_reviews(self):
+        """Claimability moves with progress, or the mosaic would say `complete` over a
+        live Claim button in the table below it."""
+        done = ["submitted"] * params.COMPLETION_THRESHOLD
+        self.assertEqual(self.paper(*done)["status"], "done")
+
+
+class TestAwaitingSignoff(StatusBase):
+    """`reviews_awaiting_signoff`: uploaded, and nobody has put their name on it yet."""
+
+    def test_it_counts_uploads_nobody_has_confirmed(self):
+        self.assertEqual(self.paper("pending", "pending")["reviews_awaiting_signoff"], 2)
+
+    def test_a_claim_with_no_upload_is_not_awaiting_anything(self):
+        self.assertEqual(self.paper("active")["reviews_awaiting_signoff"], 0)
+
+    def test_confirming_moves_a_review_out_of_it_and_into_the_count(self):
+        p = self.paper("submitted")
+        self.assertEqual(p["reviews_awaiting_signoff"], 0)
+        self.assertEqual(p["reviews_confirmed"], 1)
 
     def test_freed_claims_count_for_nothing(self):
         for st in sorted(state.FREED):
-            self.assertEqual(self.paper(st)["reviews_in_flight"], 0, st)
+            self.assertEqual(self.paper(st)["reviews_awaiting_signoff"], 0, st)
 
     def test_it_is_a_subset_of_live_claims_not_an_addition_to_them(self):
-        """Both numbers are published; they overlap, and the site says so in words."""
+        """A pending paper is still out, and both numbers are published."""
         p = self.paper("active", "pending", "submitted")
-        self.assertEqual(p["live_claims"], 3)
-        self.assertEqual(p["reviews_in_flight"], 2)
+        self.assertEqual(p["live_claims"], 2, "a confirmed review is not still out")
+        self.assertEqual(p["reviews_awaiting_signoff"], 1)
+        self.assertEqual(p["reviews_confirmed"], 1)
 
 
-class TestOutstandingNeedIsUnchanged(StatusBase):
-    """The public headline number counts graded reviews, and only those.
+class TestOutstandingNeedFollowsConfirmedReviews(StatusBase):
+    """The public headline number counts finished reviews, and only those.
 
     `total_outstanding` is on the landing page ("N reviews still needed") and
-    `outstanding_need` drives the "still needs reviews" filter. Netting work-in-flight
-    off either one would quietly shrink the ask every time somebody uploaded a file.
+    `outstanding_need` drives the "still needs reviews" filter. An upload nobody has
+    signed off must not shrink the ask — the form is a public link, so a file on its own
+    does not yet make a review — and a review that *has* been signed off must.
     """
 
-    def test_work_in_flight_does_not_reduce_the_need(self):
+    def test_an_unconfirmed_upload_does_not_reduce_the_need(self):
         need = params.COMPLETION_THRESHOLD
         self.assertEqual(self.paper()["outstanding_need"], need)
-        self.assertEqual(self.paper("pending", "submitted")["outstanding_need"], need)
+        self.assertEqual(self.paper("pending", "pending")["outstanding_need"], need)
 
-    def test_only_a_grade_reduces_it(self):
+    def test_confirming_reduces_it_and_grading_does_not_reduce_it_again(self):
+        self.assertEqual(self.paper("submitted")["outstanding_need"],
+                         params.COMPLETION_THRESHOLD - 1)
         self.assertEqual(self.paper("completed")["outstanding_need"],
                          params.COMPLETION_THRESHOLD - 1)
 
+    def test_a_review_returned_below_the_floor_puts_the_need_back(self):
+        """The one place grading still moves the board, asserted rather than assumed.
+
+        A tile can go from `done` back to `partial`, and the paper reopens with it. That
+        is correct: at 2.0/5 the floor is a "did you actually annotate it" bar.
+        """
+        done = ["submitted"] * params.COMPLETION_THRESHOLD
+        regressed = done[:-1] + ["returned"]
+        self.assertEqual(self.paper(*done)["outstanding_need"], 0)
+        p = self.paper(*regressed)
+        self.assertEqual(p["outstanding_need"], 1)
+        self.assertEqual(p["progress"], "partial")
+        self.assertEqual(p["status"], "open", "the paper has to be claimable again")
+
+    def test_an_organizer_rejection_puts_it_back_too(self):
+        done = ["submitted"] * params.COMPLETION_THRESHOLD
+        self.assertEqual(self.paper(*(done[:-1] + ["rejected"]))["outstanding_need"], 1)
+
     def test_it_never_goes_negative(self):
-        over = ["completed"] * (params.COMPLETION_THRESHOLD + 2)
+        over = ["submitted"] * (params.COMPLETION_THRESHOLD + 2)
         self.assertEqual(self.paper(*over)["outstanding_need"], 0)
 
 
@@ -262,8 +324,50 @@ class TestSiteVocabulary(unittest.TestCase):
         than the script, which is why this counts rather than forbids.
         """
         self.assertLessEqual(
-            len(re.findall(r"completed_reviews\s*>", JS)), 1,
+            len(re.findall(r"(?:confirmedReviews\(s\)|completed_reviews)\s*>", JS)), 1,
             "the progress thresholds belong in state.paper_progress(), not in the client")
+
+
+class TestTheSiteReadsFieldsThatExist(unittest.TestCase):
+    """Every `status.json` field app.js reads is one compute_status() actually writes.
+
+    The counters were renamed on 2026-08-18 (`completed_reviews` → `reviews_confirmed` +
+    `reviews_graded`, `reviews_in_flight` → `reviews_awaiting_signoff`) when a confirmed
+    review became a finished one. A missed rename in the client is silent: JavaScript
+    reads an absent key as `undefined`, and the page renders "undefined/3 reviews" or
+    quietly drops a tally — no error anywhere, and nothing else cross-checks the two
+    files. This is the four-file vocabulary lint above, extended from words to data.
+    """
+
+    # Accepted as *fallbacks only*: a visitor's cached app.js and a freshly deployed
+    # status.json cross in the air, so each accessor accepts either vintage. Delete
+    # these once no pre-rename status.json can still be served.
+    LEGACY = {"completed_reviews", "reviews_in_flight", "reviews_completed"}
+
+    def published(self) -> tuple[set, set]:
+        """(per-paper keys, totals keys) as compute_status actually emits them."""
+        pool = {"EEG-01": {"modality": "EEG", "level": 1}}
+        status = state.compute_status(pool, {})
+        return set(status["papers"]["EEG-01"]), set(status["totals"])
+
+    def test_every_per_paper_field_is_published(self):
+        papers, _ = self.published()
+        read = set(re.findall(r"\bs\.([a-z_]+)", JS))
+        self.assertEqual(read - papers - self.LEGACY, set(),
+                         "app.js reads a per-paper field state.py does not write")
+
+    def test_every_totals_field_is_published(self):
+        _, totals = self.published()
+        read = set(re.findall(r"\bt\.([a-z_]+)", JS))
+        self.assertEqual(read - totals - self.LEGACY, set(),
+                         "app.js reads a totals field state.py does not write")
+
+    def test_the_lint_is_reading_something(self):
+        """A canary. If `s` or `t` were renamed in app.js the two tests above would
+        pass against an empty set and guard nothing."""
+        for var in ("s", "t"):
+            self.assertGreaterEqual(len(set(re.findall(rf"\b{var}\.([a-z_]+)", JS))), 3,
+                                    f"nothing in app.js reads fields off `{var}` any more")
 
 
 class TestMosaicContrast(unittest.TestCase):

@@ -9,7 +9,8 @@ These mirror the WG3-ratifiable defaults in
 # --- Federation mechanics (mechanics.md) -----------------------------------
 ACTIVE_CLAIM_CAP = 3        # max papers a participant may hold in parallel
 POOL_CLOSE_THRESHOLD = 5    # a paper stops accepting claims at this many live claimants
-COMPLETION_THRESHOLD = 3    # a paper is "done" at this many floor-passing reviews
+COMPLETION_THRESHOLD = 3    # a paper is "done" at this many confirmed reviews (grading
+                            # decides points, not whether a review counts)
 DEADLINE_DAYS = 12          # days from claim to due date
 EXTENSION_DAYS = 7          # one-time extension length
 REMIND_BEFORE_DAYS = (3, 1)  # nudge when due is this many days away (day 9, day 11)
@@ -62,7 +63,11 @@ RUBRIC_WEIGHTS = {
     "action": 0.20,         # data-sharing / standardization / reproducibility angle
     "originality": 0.15,    # personal voice / non-AI signal
 }
-QUALITY_FLOOR = 2.0         # min weighted score (0-5) to earn points and count as complete
+# Min weighted score (0-5) to earn points. A review below it is `returned`: it counts for
+# nothing, and its paper reopens. That is a deliberate exception to "confirming finishes a
+# review" — at 2.0 out of 5 this is a "did you actually annotate it" bar, so the only
+# reviews it takes back are ones the paper should not have been counting.
+QUALITY_FLOOR = 2.0
 
 # Optional under-served-modality bonus (WG3-toggleable). When enabled, a review
 # on a paper still far from COMPLETION_THRESHOLD earns a small increment.

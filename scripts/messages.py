@@ -104,12 +104,20 @@ def _upload_cell(issue: int, pid: str, who: str) -> str:
 
 
 # --- blocks -----------------------------------------------------------------
+# What the holdings table lists: everything on this thread that is not terminal. Wider
+# than IN_FLIGHT since `/confirm` began freeing the slot — a review the participant just
+# finished has to stay visible on the thread that reports their work, even though it no
+# longer counts against their cap. `completed` is left out: it is scored, settled, and
+# belongs to the leaderboard rather than to a table of what someone is holding.
+LISTED = state.IN_FLIGHT | {"submitted"}
+
+
 def holdings_table(claim: dict, pool: dict) -> str:
-    """What the participant currently holds. Empty string if nothing is in flight."""
+    """What the participant currently holds. Empty string if nothing is outstanding."""
     issue, who = claim["issue"], claim["participant"]
     rows = []
     for pid, rec in claim["papers"].items():
-        if rec["state"] not in state.IN_FLIGHT:
+        if rec["state"] not in LISTED:
             continue
         if rec["state"] == "submitted":
             # The catalogue lookups are bound first, not inlined into the f-string:
@@ -153,22 +161,16 @@ def _cap_line(claim: dict, claims: dict) -> str:
     # lazy continuation of the last row
     if n < cap:
         return "\n\n" + prose.t("cap.room", n=n, cap=cap, note=note, left=cap - n)
-    # A submitted or pending paper still holds its slot (state.IN_FLIGHT), so "withdraw
-    # one" is impossible advice for someone whose papers are all already with us.
-    def _count(st):
-        return sum(1 for c in claims.values() if c["participant"] == who
-                   for r in c["papers"].values() if r["state"] == st)
-
-    waiting, unconfirmed = _count("submitted"), _count("pending")
-    bits = []
+    # A pending paper still holds its slot, so "withdraw one" is unhelpful advice for
+    # someone whose file is already with us: the way out is to sign it off, which both
+    # finishes the review and gives the slot back. (A confirmed one is no longer counted
+    # here at all, so it can never be the reason someone is at the cap.)
+    unconfirmed = sum(1 for c in claims.values() if c["participant"] == who
+                      for r in c["papers"].values() if r["state"] == "pending")
+    tail = ""
     if unconfirmed:
-        # Actionable, so it leads: confirming is the one thing they can do right now.
-        bits.append(prose.t("cap.waiting_confirm", n=unconfirmed,
-                            verb="is" if unconfirmed == 1 else "are"))
-    if waiting:
-        bits.append(prose.t("cap.waiting_grading.one" if waiting == 1
-                            else "cap.waiting_grading.many", n=waiting))
-    tail = f" ({_prose_list(bits)})" if bits else ""
+        tail = " (" + prose.t("cap.waiting_confirm", n=unconfirmed,
+                              verb="is" if unconfirmed == 1 else "are") + ")"
     return "\n\n" + prose.t("cap.full", n=n, cap=cap, note=note, tail=tail)
 
 

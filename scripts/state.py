@@ -37,9 +37,11 @@ CLAIMS_DIR = REPO / "claims"
 LEDGER_DIR = REPO / "ledger"
 
 # State semantics ------------------------------------------------------------
-# in-flight  : occupies a slot, counts as a live claim and against the cap
-# done       : a floor-passing completed review, counts toward the 3
-# freed      : slot released, contributes nothing
+# in-flight : the paper is still out — being read, or waiting on a sign-off. Occupies a
+#             slot against the cap and counts as a live claimant.
+# delivered : a finished review. Counts toward the paper's three.
+# done      : delivered AND graded above the floor. Counts for points, and only points.
+# freed     : slot released, contributes nothing.
 #
 # The lifecycle:
 #
@@ -50,20 +52,28 @@ LEDGER_DIR = REPO / "ledger"
 # **cannot expire** — sweep only touches `active`, so reaching `pending` stops the
 # deadline clock. That is deliberate, not incidental: someone who uploads on day 11
 # must not be expired on day 12 while waiting on us.
-IN_FLIGHT = {"active", "pending", "submitted"}
+IN_FLIGHT = {"active", "pending"}
+# **A review is finished when its author signs it off.** Grading is a separate, later,
+# organizer-side question about quality and points, and it used to gate everything: the
+# board moved only on a grade, so on 2026-08-18 six delivered reviews and an empty ledger
+# rendered as "0 of 717 reviews in" with all 239 tiles untouched. `submitted` therefore
+# leaves IN_FLIGHT — the copy has come back, and the slot with it — and joins `completed`
+# here, where both ladders and the outstanding need read it.
+DELIVERED = {"submitted", "completed"}
 DONE = {"completed"}
-# A strict subset of IN_FLIGHT: a file exists for this claim but carries no grade yet.
-# These are *already* counted in `live_claims`, so the two numbers overlap by design —
-# `live_claims` says how many copies are out, this says how many of them came back.
-# It exists so the site can say "two graded, a third with the organizers" instead of
-# letting weeks of grading lag read as "nobody has touched this paper".
-REVIEW_IN_FLIGHT = {"pending", "submitted"}
+# Uploaded, not yet signed off: the ball is in the claimant's court. Reported beside the
+# delivered count so a paper with a file sitting on it does not read as untouched, and
+# never folded into it — an upload proves only that someone had the (public) link.
+AWAITING_SIGNOFF = {"pending"}
 # "recalled": legacy pre-rename data. "rejected": removed by an organizer for a rules
 # violation — mechanically identical to withdrawn/returned, but kept distinct because
 # for a paper carrying co-authorship, "removed for a violation" and "scored badly" must
-# never be the same record.
+# never be the same record. `returned` (graded below the floor) stays here deliberately:
+# the floor is a "did you actually annotate it" bar, so a review that fails it is one the
+# paper should not be counting, and the tile going back from `done` to `partial` is the
+# correct answer in the only case that can trigger it.
 FREED = {"withdrawn", "recalled", "expired", "returned", "rejected"}
-ALL_STATES = IN_FLIGHT | DONE | FREED
+ALL_STATES = IN_FLIGHT | DELIVERED | FREED
 
 # The states in which the ball is in the *participant's* court. This is the concept
 # the auto-close predicate needs: a thread closes when nothing here needs them.
@@ -145,15 +155,29 @@ def live_claimants(claims: dict, paper_id: str) -> set[str]:
             if pid == paper_id and s in IN_FLIGHT}
 
 
+def delivered_count(claims: dict, paper_id: str) -> int:
+    """Finished reviews for this paper: signed off by their author, graded or not.
+
+    The input to **both** ladders and to the outstanding need — the number that means
+    "how many of the three are in".
+    """
+    return sum(1 for pid, _p, s in _iter_paper_states(claims)
+               if pid == paper_id and s in DELIVERED)
+
+
 def completed_count(claims: dict, paper_id: str) -> int:
+    """Delivered reviews that have also been graded above the floor.
+
+    Drives points (``rank.py``) and is reported on the site; it moves neither ladder.
+    """
     return sum(1 for pid, _p, s in _iter_paper_states(claims)
                if pid == paper_id and s in DONE)
 
 
-def in_flight_count(claims: dict, paper_id: str) -> int:
-    """Uploads received for this paper that have not been graded yet."""
+def awaiting_signoff_count(claims: dict, paper_id: str) -> int:
+    """Uploads received for this paper that their claimant has not confirmed yet."""
     return sum(1 for pid, _p, s in _iter_paper_states(claims)
-               if pid == paper_id and s in REVIEW_IN_FLIGHT)
+               if pid == paper_id and s in AWAITING_SIGNOFF)
 
 
 def active_cap_count(claims: dict, participant: str) -> int:
@@ -163,12 +187,20 @@ def active_cap_count(claims: dict, participant: str) -> int:
 
 
 def participant_holds(claims: dict, participant: str, paper_id: str) -> bool:
-    return any(pid == paper_id and p == participant and s in IN_FLIGHT
+    """Has this person got this paper — still out, or already reviewed?
+
+    Spans DELIVERED as well as IN_FLIGHT, and that is the whole point of it. Since a
+    confirmed review frees the slot, ``IN_FLIGHT`` alone would let someone re-claim a
+    paper they have already reviewed and deliver a second review that counts toward the
+    same three. The claim-side guard is here rather than in ``apply_claim`` so every
+    caller inherits it.
+    """
+    return any(pid == paper_id and p == participant and s in (IN_FLIGHT | DELIVERED)
                for pid, p, s in _iter_paper_states(claims))
 
 
-def paper_status(live: int, completed: int) -> str:
-    if completed >= params.COMPLETION_THRESHOLD:
+def paper_status(live: int, delivered: int) -> str:
+    if delivered >= params.COMPLETION_THRESHOLD:
         return "done"
     if live >= params.POOL_CLOSE_THRESHOLD:
         return "closed"
@@ -180,13 +212,16 @@ def paper_status(live: int, completed: int) -> str:
 # five people hold it. This answers "how far along is it?", so a paper with one
 # claimant must not look untouched, and a paper one review short of complete must not
 # look like one nobody has opened. Both are needed; neither derives from the other.
+#
+# Both now read the *delivered* count. Grading moves neither, so a tile can never be
+# ahead of or behind the number of reviews the paper actually has.
 PROGRESS_STATES = ("open", "review", "partial", "done")
 
 
-def paper_progress(live: int, completed: int) -> str:
-    if completed >= params.COMPLETION_THRESHOLD:
+def paper_progress(live: int, delivered: int) -> str:
+    if delivered >= params.COMPLETION_THRESHOLD:
         return "done"
-    if completed > 0:
+    if delivered > 0:
         return "partial"
     return "review" if live > 0 else "open"
 
@@ -195,18 +230,21 @@ def compute_status(pool: dict, claims: dict) -> dict:
     """Derive per-paper + club-level status. Pure function of pool + claims."""
     papers = {}
     total_outstanding = 0
-    total_completed = 0
+    total_confirmed = total_graded = 0
     n_done = n_closed = n_open = 0
     for pid, rec in pool.items():
         live = len(live_claimants(claims, pid))
-        completed = completed_count(claims, pid)
-        st = paper_status(live, completed)
-        need = max(0, params.COMPLETION_THRESHOLD - completed)
-        # `need` counts graded reviews only, and stays that way: it is the public
-        # headline number and the site's "still needs reviews" filter. Work in flight
-        # is reported beside it, never subtracted from it.
+        delivered = delivered_count(claims, pid)
+        graded = completed_count(claims, pid)
+        st = paper_status(live, delivered)
+        need = max(0, params.COMPLETION_THRESHOLD - delivered)
+        # `need` counts finished (confirmed) reviews, and only those: it is the public
+        # headline number and the site's "still needs reviews" filter. An upload nobody
+        # has signed off is reported beside it, never subtracted from it — the form is
+        # open-access, so a file on its own does not yet make a review.
         total_outstanding += need
-        total_completed += completed
+        total_confirmed += delivered
+        total_graded += graded
         n_done += st == "done"
         n_closed += st == "closed"
         n_open += st == "open"
@@ -214,10 +252,11 @@ def compute_status(pool: dict, claims: dict) -> dict:
             "modality": rec["modality"],
             "level": rec["level"],
             "live_claims": live,       # "copies" currently drawn from the library
-            "completed_reviews": completed,  # reports received
-            "reviews_in_flight": in_flight_count(claims, pid),  # ...and not yet graded
+            "reviews_confirmed": delivered,       # finished: signed off by their author
+            "reviews_graded": graded,             # ...and also scored
+            "reviews_awaiting_signoff": awaiting_signoff_count(claims, pid),
             "status": st,              # claimability
-            "progress": paper_progress(live, completed),  # how far along (mosaic)
+            "progress": paper_progress(live, delivered),  # how far along (mosaic)
             "outstanding_need": need,
         }
     return {
@@ -233,7 +272,8 @@ def compute_status(pool: dict, claims: dict) -> dict:
             "done": n_done,
             "closed": n_closed,
             "open": n_open,
-            "reviews_completed": total_completed,
+            "reviews_confirmed": total_confirmed,   # the headline "reviews in"
+            "reviews_graded": total_graded,         # the grading backlog's other end
             "total_outstanding": total_outstanding,  # estimate of remaining review work
         },
         "papers": papers,
@@ -290,8 +330,7 @@ def apply_claim(pool: dict, claims: dict, claim: dict, ids: list[str],
             out.reject(prose.t("claim.already_held", pid=pid))
             continue
         live = len(live_claimants(claims, pid))
-        completed = completed_count(claims, pid)
-        st = paper_status(live, completed)
+        st = paper_status(live, delivered_count(claims, pid))
         if st == "done":
             out.reject(prose.t("claim.paper_done", pid=pid))
             continue
@@ -323,6 +362,13 @@ def apply_withdraw(claim: dict, ids: list[str]) -> Outcome:
     for raw in ids:
         pid = raw.strip().upper()
         rec = claim["papers"].get(pid)
+        if rec and rec["state"] in DELIVERED:
+            # There is nothing left to give back: the review is in, and it counts. Said
+            # separately because "you have no active claim on this paper" would be a
+            # baffling answer to someone whose review the site is currently displaying,
+            # and because pulling a delivered review is an organizer's `/reject`.
+            out.reject(prose.t("withdraw.already_confirmed", pid=pid))
+            continue
         if not rec or rec["state"] not in IN_FLIGHT:
             out.reject(prose.t("withdraw.no_claim", pid=pid))
             continue
@@ -409,6 +455,12 @@ def apply_confirm(claim: dict, ids: list[str], now: datetime) -> Outcome:
     proxy (see ``issue_ops.COMMAND_ACL``). GitHub identity is the anchor: it is what
     makes *this* person the author of the review, and — because the form's no-AI radio
     is unauthenticated — the only place the no-AI declaration acquires a signatory.
+
+    It is also the moment the review **finishes**: `submitted` is DELIVERED, so the paper
+    counts one of its three from here, and the slot is freed. Nothing downstream can hand
+    the paper back to the claimant — a below-floor grade or an organizer's `/reject` both
+    free it — so holding the slot open for grading only ever penalised the person who
+    delivered first.
     """
     out = Outcome()
     for raw in ids:

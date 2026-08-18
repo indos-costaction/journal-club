@@ -35,11 +35,13 @@ def compute_ranking(claims: dict, ledger: list[dict], status: dict | None = None
     attribution = _attribution_map(claims)
 
     # optional under-served-modality bonus: reward reviews on papers still short of
-    # the completion threshold (steer effort where the pool needs it).
+    # the completion threshold (steer effort where the pool needs it). Keyed on the
+    # *confirmed* count — the same number the site's outstanding need uses — so the
+    # bonus tracks what the pool is actually asking for rather than the grading backlog.
     underserved = set()
     if params.UNDERSERVED_BONUS_ENABLED and status:
         underserved = {pid for pid, s in status["papers"].items()
-                       if s["completed_reviews"] < params.COMPLETION_THRESHOLD}
+                       if s["reviews_confirmed"] < params.COMPLETION_THRESHOLD}
 
     agg: dict[str, dict] = {}
     for e in ledger:

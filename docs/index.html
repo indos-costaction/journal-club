@@ -176,7 +176,7 @@
             <thead><tr>
               <th>ID</th><th>Modality</th><th>Paper</th>
               <th title="copies currently drawn">Claims</th>
-              <th title="reports received">Reviews</th>
+              <th title="reviews confirmed by their author">Reviews</th>
               <th>Status</th><th></th>
             </tr></thead>
             <tbody></tbody>
@@ -186,7 +186,9 @@
 
       <section id="board" hidden>
         <p class="muted">Ranked by cumulative quality points (Σ weighted rubric score over floor-passing
-          reviews). Withdrawals, expiries, and below-floor reviews earn nothing.</p>
+          reviews). Withdrawals, expiries, and below-floor reviews earn nothing.
+          A review <em>counts</em> toward its paper as soon as its author confirms it; scoring comes
+          afterwards and decides only the points, so this board trails the pool by the grading queue.</p>
         <div class="table-scroll">
           <table id="boardTable">
             <thead><tr><th>#</th><th>Participant</th><th>Points</th><th>Reviews</th><th>Mean</th></tr></thead>

@@ -41,6 +41,16 @@ const el = (tag, props = {}, ...kids) => {
 let POOL = [], STATUS = {}, RANKING = { participants: [] };
 let POOL_BY_ID = new Map();   // id -> paper, for the mosaic hover card
 
+/* Per-paper counters, read through accessors because status.json renamed them on
+   2026-08-18 — when a review stopped being finished at *grading* and started being
+   finished at its author's `/confirm`. A visitor can hold a cached copy of this script
+   older than the data (or newer), so each count accepts either vintage. On an old file
+   `completed_reviews` meant graded, which is exactly the number the old site showed;
+   falling back to it degrades to yesterday's picture rather than to zero. */
+const confirmedReviews = s => s.reviews_confirmed ?? s.completed_reviews ?? 0;
+const gradedReviews = s => s.reviews_graded ?? s.completed_reviews ?? 0;
+const awaitingSignoff = s => s.reviews_awaiting_signoff ?? s.reviews_in_flight ?? 0;
+
 async function load() {
   // GitHub Pages serves these with max-age=600, so a plain fetch can show a claim/
   // withdrawal up to ~10 min stale. Cache-bust the volatile files so a reload is live.
@@ -88,7 +98,7 @@ function paperProgress(id) {
   // A status.json older than this script: fall back to the three states it can
   // support rather than painting the whole pool as untouched.
   if (s.status === "done") return DONE;
-  return (s.live_claims > 0 || s.completed_reviews > 0) ? REVIEW : OPEN;
+  return (s.live_claims > 0 || confirmedReviews(s) > 0) ? REVIEW : OPEN;
 }
 
 // Hero mosaic: one tile per paper, in pool.json order (which is clustered by modality).
@@ -117,7 +127,8 @@ function renderMosaic() {
     `${tally.partial} partly reviewed, ${tally.done} complete, of ${POOL.length}.`);
   const t = STATUS.totals;
   if (t) $("#mosaicCount").textContent =
-    `${t.reviews_completed} of ${t.papers * STATUS.params.completion_threshold} reviews in`;
+    `${t.reviews_confirmed ?? t.reviews_completed ?? 0} of ` +
+    `${t.papers * STATUS.params.completion_threshold} reviews in`;
 }
 
 /* ---------------------------------------------------------------------------
@@ -127,7 +138,8 @@ const WORD = { open: "open", review: "in review", partial: "partly reviewed", do
 
 function tipContent(p) {
   const s = STATUS.papers?.[p.id]
-    || { live_claims: 0, completed_reviews: 0, reviews_in_flight: 0, status: "open" };
+    || { live_claims: 0, reviews_confirmed: 0, reviews_graded: 0,
+         reviews_awaiting_signoff: 0, status: "open" };
   const st = paperProgress(p.id);
   const meta = [p.first_author, p.year, p.venue].filter(Boolean).join(" · ");
 
@@ -139,13 +151,18 @@ function tipContent(p) {
       ? "Complete — click to find it in the list →"
       : "Closed to new claims — click to find it in the list →";
 
-  // Work that is uploaded or signed off but not yet graded. Reported beside the
-  // graded count, never folded into it: the tile only ever moves on a grade, so
-  // grading lag must not read as "nobody has touched this paper".
-  const flight = s.reviews_in_flight
-    ? [el("span", { className: "tip-sep", textContent: "·" }),
-       el("span", { className: "tip-flight", textContent: `+${s.reviews_in_flight} being graded` })]
-    : [];
+  // Two tails, each shown only when it has something to say. Uploads waiting on their
+  // claimant's `/confirm` are reported beside the review count and never folded into it
+  // — the upload form is a public link, so a file on its own does not yet make a review.
+  // Scoring is reported for the same reason in reverse: it is real work in progress on
+  // our side, and it moves nothing on this card.
+  const sep = () => el("span", { className: "tip-sep", textContent: "·" });
+  const tails = [];
+  if (gradedReviews(s))
+    tails.push(sep(), el("span", { textContent: `${gradedReviews(s)} scored` }));
+  if (awaitingSignoff(s))
+    tails.push(sep(), el("span", { className: "tip-flight",
+                                   textContent: `+${awaitingSignoff(s)} awaiting sign-off` }));
 
   return [
     el("p", { className: "tip-title", textContent: p.title }),
@@ -153,11 +170,11 @@ function tipContent(p) {
     el("p", { className: "tip-stats" },
       el("span", { className: "key k-" + st }),
       el("span", { textContent: WORD[st] }),
-      el("span", { className: "tip-sep", textContent: "·" }),
+      sep(),
       el("span", { textContent: `${s.live_claims}/${STATUS.params.pool_close_threshold} claims` }),
-      el("span", { className: "tip-sep", textContent: "·" }),
-      el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold} reviews` }),
-      ...flight),
+      sep(),
+      el("span", { textContent: `${confirmedReviews(s)}/${STATUS.params.completion_threshold} reviews` }),
+      ...tails),
     el("p", { className: "tip-cta", textContent: cta }),
   ];
 }
@@ -169,10 +186,12 @@ function showTip(tile) {
   tip.replaceChildren(...tipContent(p));
   tip.classList.add("show");          // measurable before positioning: visibility, not display
 
-  const a = tile.getBoundingClientRect(), t = tip.getBoundingClientRect(), gap = 10;
-  const x = Math.max(8, Math.min(a.left + a.width / 2 - t.width / 2, innerWidth - t.width - 8));
+  // `box`, not `t`: `t` is the status totals object everywhere else in this file, and
+  // tests/test_site.py lints every `t.<field>` against the keys state.py actually emits.
+  const a = tile.getBoundingClientRect(), box = tip.getBoundingClientRect(), gap = 10;
+  const x = Math.max(8, Math.min(a.left + a.width / 2 - box.width / 2, innerWidth - box.width - 8));
   const below = a.bottom + gap;
-  const y = below + t.height > innerHeight - 8 ? a.top - t.height - gap : below;
+  const y = below + box.height > innerHeight - 8 ? a.top - box.height - gap : below;
   tip.style.left = `${Math.round(x)}px`;
   tip.style.top = `${Math.round(Math.max(8, y))}px`;
 }
@@ -244,7 +263,8 @@ function initModalities() {
 
 function renderProgress() {
   const t = STATUS.totals; if (!t) return;
-  const reviews = t.reviews_completed, needed = t.papers * STATUS.params.completion_threshold;
+  const reviews = t.reviews_confirmed ?? t.reviews_completed ?? 0;
+  const needed = t.papers * STATUS.params.completion_threshold;
   const pct = needed ? Math.round(100 * reviews / needed) : 0;
   $("#progressFill").style.width = pct + "%";
   $("#progressText").textContent =
@@ -265,8 +285,8 @@ function renderPool() {
   let n = 0;
   for (const p of POOL) {
     const s = STATUS.papers?.[p.id] || {
-      live_claims: 0, completed_reviews: 0, reviews_in_flight: 0,
-      status: "open", progress: "open",
+      live_claims: 0, reviews_confirmed: 0, reviews_graded: 0,
+      reviews_awaiting_signoff: 0, status: "open", progress: "open",
       outstanding_need: STATUS.params?.completion_threshold || 3,
     };
     if (mod && p.modality !== mod) continue;
@@ -287,12 +307,14 @@ function renderPool() {
       title,
       el("td", { className: "num", textContent: `${s.live_claims}/${STATUS.params.pool_close_threshold}` }),
       el("td", { className: "num" },
-        el("span", { textContent: `${s.completed_reviews}/${STATUS.params.completion_threshold}` }),
-        // Uploaded or signed off, not yet graded. Kept out of the ratio itself so the
-        // column keeps meaning "graded", which is what the completion threshold counts.
-        ...(s.reviews_in_flight
-          ? [el("span", { className: "flight", title: "received, not yet graded",
-                          textContent: ` +${s.reviews_in_flight}` })]
+        el("span", { textContent: `${confirmedReviews(s)}/${STATUS.params.completion_threshold}` }),
+        // Uploaded, not yet confirmed by its author. Kept out of the ratio itself so the
+        // column keeps meaning "reviews this paper has", which is what the completion
+        // threshold counts — an upload nobody has signed off is not one of them yet.
+        ...(awaitingSignoff(s)
+          ? [el("span", { className: "flight",
+                          title: "uploaded, awaiting the reviewer's sign-off",
+                          textContent: ` +${awaitingSignoff(s)}` })]
           : [])),
       el("td", {}, statusBadge(s.status)),
       el("td", {}, action)));

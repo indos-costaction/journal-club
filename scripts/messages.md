@@ -49,6 +49,9 @@ Two standing rules the tests enforce, both learned the hard way:
 ## withdraw.no_claim
 `{pid}` — you have no active claim on this paper.
 
+## withdraw.already_confirmed
+`{pid}` — you already confirmed this one, so the review is in and counts toward the paper. Nothing to return. If it needs pulling back, say so here and an organizer can do it.
+
 ## withdraw.ok
 `{pid}` returned to the pool. Slot freed.
 
@@ -74,19 +77,19 @@ Two standing rules the tests enforce, both learned the hard way:
 `{pid}` — upload received. It needs your confirmation below.
 
 ## confirm.already
-`{pid}` — already confirmed. Nothing to do; it's with the organizers.
+`{pid}` — already confirmed, and already counted. Nothing to do.
 
 ## confirm.nothing_to_confirm
 `{pid}` — nothing to confirm (we have no upload for it yet). Upload it first and we'll ask you here.
 
 ## confirm.ok
-`{pid}` confirmed — thank you. It's with the organizers for grading.
+`{pid}` confirmed — thank you. Your review is done: it counts as one of that paper's {COMPLETION_THRESHOLD}, and the slot is yours again. Scoring happens on our side later and decides points, nothing else.
 
 ## decline.already
 `{pid}` — already declined. Nothing to do; upload again whenever you're ready.
 
 ## decline.already_confirmed
-`{pid}` — you already confirmed this one, so it's with the organizers. Ask them here and they can pull it back.
+`{pid}` — you already confirmed this one, so the review is in and counts. Ask here and an organizer can pull it back.
 
 ## decline.nothing_to_decline
 `{pid}` — nothing to decline; we're not holding an upload for it.
@@ -138,7 +141,7 @@ _No recognised command found._
 |---|---|---|---|
 
 ## holdings.next_confirmed
-confirmed — with us for grading
+done — counts toward its {COMPLETION_THRESHOLD}
 
 ## holdings.next_sign_off
 **`/confirm {pid}`** to sign it off
@@ -153,13 +156,7 @@ That's **{n} of {cap}** active{note} — room for {left} more.
 That's **{n} of {cap}** active{note} — you'll need to finish or withdraw one before claiming another{tail}.
 
 ## cap.waiting_confirm
-{n} {verb} waiting on your `/confirm`
-
-## cap.waiting_grading.one
-{n} is with us for grading — that slot frees up once scored
-
-## cap.waiting_grading.many
-{n} are with us for grading — those slots free up once scored
+{n} {verb} waiting on your `/confirm`, which is what finishes a review and frees its slot
 
 ## commands.heading
 ### If your plans change
@@ -182,14 +179,14 @@ Back to the pool — a better outcome than a rushed review.
 Take another paper, if you're under the cap.
 
 ## confirm_attestation
-**Before `{pid}` can be graded**, reply **`/confirm {pid}`** on this thread to confirm that:
+**Before `{pid}` counts as a review**, reply **`/confirm {pid}`** on this thread to confirm that:
 
 - this upload is yours, and
 - you read and annotated the paper **yourself, without AI assistance**.
 
 You answered that on the upload form too, but that form is open to anyone with the link — it can't tell who filled it in. Your reply here is signed by your GitHub account, so it's what actually puts your name on the review and on the no-AI declaration.
 
-Didn't upload this, or want to replace it? **Don't confirm it** — reply **`/decline {pid}`** with a line saying why, and we won't grade it.
+Didn't upload this, or want to replace it? **Don't confirm it** — reply **`/decline {pid}`** with a line saying why, and it won't count or be graded.
 
 ## deadline_footer
 ---
@@ -231,7 +228,7 @@ Need longer? `/extend {pid}` buys a one-time +{EXTENSION_DAYS} days.
 
 {attestation}
 
-There's no deadline on this one — the clock stopped when your file arrived. But it won't be graded, and it holds one of your {ACTIVE_CLAIM_CAP} slots, until you sign it off.
+There's no deadline on this one — the clock stopped when your file arrived. But until you sign it off it counts for nothing, and it holds one of your {ACTIVE_CLAIM_CAP} slots. One comment finishes it and gives the slot back.
 
 ## not_your_thread
 @{actor} — only the thread's owner (@{author}) or an organizer can run claim commands here.
@@ -265,7 +262,7 @@ We can't record a claim without the consent checkbox ticked. Please edit the iss
 @{author} — closing this issue does **not** release your claims — {papers} {verb} still active and the {DEADLINE_DAYS}-day deadline keeps running. To return a paper, comment `/withdraw <ID>`. Reopen this issue to keep working.
 
 ## thread_done.submitted
-Nothing on this thread needs your action — closing it. Your confirmed reviews are with the organizers for grading, and your points will appear on the leaderboard once they're scored. Open a new claim whenever you like → {SITE_URL}#papers
+Nothing on this thread needs your action — closing it. Your confirmed reviews are done and already counting toward their papers; your points appear on the leaderboard once we've scored them. Open a new claim whenever you like → {SITE_URL}#papers
 
 ## thread_done.nothing_submitted
 Nothing on this thread needs your action — closing it. Claim again whenever suits you → {SITE_URL}#papers
@@ -284,13 +281,14 @@ Nothing else on this thread needs your action — closing it. The paper is back 
    → [How to read a paper]({SITE_URL}reading.html)
 3. **Upload it** with that paper's Upload link above. It already knows which paper is yours.
 4. **Sign it off here.** Once we have your file we'll @-mention you on this thread; reply
-   `/confirm <ID>` and it goes to grading.
+   `/confirm <ID>` and you're done — the review counts toward that paper and your slot is free.
 
 **Why the sign-off?** The upload form is a public link, so on its own it can't prove *who*
 sent a file. Your `/confirm` here is what puts your name on the review — and on the no-AI
 declaration. It's one comment, and we ask for it; you don't have to remember it.
 
-Then we grade it against the [rubric]({SITE_URL}participate.html#how-to-review-a-paper).
+We score it against the [rubric]({SITE_URL}participate.html#how-to-review-a-paper) afterwards.
+That's what puts points on the leaderboard; the review itself is already in.
 
 ## suggest.heading
 Thanks for the suggestion. Here is what we already know about each one:

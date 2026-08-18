@@ -159,13 +159,120 @@ class TestClose(Base):
 
         r = self.comment(f"/confirm {PAPER}", actor=AUTHOR)
         self.assertTrue(r["close"])
-        self.assertIn("grading", r["close_comment"])
+        # Two things the closing note has to say, in either order: the review is in, and
+        # the points are not yet. Closing on "with the organizers for grading" was the
+        # old promise, and it is no longer what happens.
+        self.assertIn("counting", r["close_comment"])
+        self.assertIn("leaderboard", r["close_comment"])
 
     def test_close_after_withdraw_promises_no_points(self):
         self.claim_paper()
         r = self.comment(f"/withdraw {PAPER}")
         self.assertTrue(r["close"])
         self.assertNotIn("points", r["close_comment"])
+
+
+class TestConfirmingFinishesTheReview(Base):
+    """`/confirm` ends the review: it counts toward its paper, and the slot comes back.
+
+    A confirmed review used to stay IN_FLIGHT until an organizer graded it, so somebody
+    who delivered three reviews was at the cap until we got round to scoring them — and
+    with an empty ledger on 2026-08-18, that was indefinitely. Grading decides points; it
+    is not what finishes a review, and it is not what should gate the next claim.
+    """
+
+    def setUp(self):
+        super().setUp()
+        state.POOL_FILE.write_text(json.dumps(
+            [{"id": f"EEG-{n}", "modality": "EEG", "level": 1, "title": f"Paper {n}",
+              "first_author": "Mutanen", "year": 2022, "url": "https://doi.org/10.x"}
+             for n in (15, 22, 30, 31)]))
+
+    def deliver(self, pid=PAPER, issue=ISSUE, author=AUTHOR):
+        """Take one paper all the way to a confirmed review."""
+        self.comment(f"/received {pid} ref:r{pid}", actor=ORGANIZER,
+                     issue=issue, author=author)
+        return self.comment(f"/confirm {pid}", actor=author, issue=issue, author=author)
+
+    def test_confirming_gives_the_slot_back(self):
+        self.claim_paper()
+        self.comment("/claim EEG-22 EEG-30")
+        self.assertEqual(state.active_cap_count(state.load_claims(), AUTHOR),
+                         params.ACTIVE_CLAIM_CAP)
+        self.assertIn("active claims", self.comment("/claim EEG-31")["comment"])
+
+        self.deliver()
+        self.assertEqual(state.active_cap_count(state.load_claims(), AUTHOR),
+                         params.ACTIVE_CLAIM_CAP - 1)
+        self.comment("/claim EEG-31")
+        self.assertEqual(self.rec("EEG-31")["state"], "active")
+
+    def test_an_upload_awaiting_sign_off_still_holds_its_slot(self):
+        """The other half of the rule: `pending` is waiting on *them*, so it counts."""
+        self.claim_paper()
+        self.comment("/claim EEG-22 EEG-30")
+        self.comment(f"/received {PAPER} ref:1", actor=ORGANIZER)
+        self.assertEqual(state.active_cap_count(state.load_claims(), AUTHOR),
+                         params.ACTIVE_CLAIM_CAP)
+        r = self.comment("/claim EEG-31")
+        self.assertIn("active claims", r["comment"])
+        # ...and the reply says which action gets the slot back, since "withdraw one"
+        # is useless advice to someone whose file is already with us.
+        self.assertIn("frees its slot", r["comment"])
+
+    def test_a_paper_you_have_reviewed_cannot_be_claimed_again(self):
+        """The guard a freed slot needs, and the sharpest defect this model can produce.
+
+        `participant_holds()` spans DELIVERED as well as IN_FLIGHT. Without that, the
+        freed slot lets the same person re-claim the paper they just reviewed and deliver
+        a second review counting toward the same three.
+        """
+        self.claim_paper()
+        self.deliver()
+        self.assertIn("already hold this paper", self.comment(f"/claim {PAPER}")["comment"])
+        self.assertEqual(state.delivered_count(state.load_claims(), PAPER), 1)
+
+        grade.grade(ISSUE, PAPER, AXES, ORGANIZER)
+        self.assertIn("already hold this paper", self.comment(f"/claim {PAPER}")["comment"])
+        self.assertEqual(state.delivered_count(state.load_claims(), PAPER), 1)
+
+    def test_a_confirmed_review_cannot_be_withdrawn(self):
+        """`/withdraw` gates on IN_FLIGHT, which a confirmed review has left. Answered by
+        name rather than with "you have no active claim", which would be a baffling reply
+        to someone whose review the site is displaying."""
+        self.claim_paper()
+        self.deliver()
+        r = self.comment(f"/withdraw {PAPER}")
+        self.assertIn("already confirmed", r["comment"])
+        self.assertEqual(self.rec()["state"], "submitted")
+
+    def test_the_thread_still_lists_a_confirmed_paper(self):
+        """It left the cap, not the record. The table is what reports someone's work."""
+        self.claim_paper()
+        self.deliver()
+        body = self.comment("/claim EEG-22")["comment"]
+        self.assertIn(PAPER, body)
+        self.assertIn("counts toward", body)
+
+    def test_closing_the_thread_only_warns_about_papers_still_out(self):
+        """The notice says deadlines keep running. A confirmed review has none left."""
+        self.claim_paper()
+        self.comment("/claim EEG-22")
+        self.deliver()
+        r = issue_ops.handle_event({
+            "event_name": "issues", "action": "closed",
+            "issue": {"number": ISSUE, "user": {"login": AUTHOR}}})
+        self.assertIn("EEG-22", r["comment"])
+        self.assertNotIn(PAPER, r["comment"])
+
+    def test_three_confirmed_reviews_take_the_paper_out_of_the_pool(self):
+        """Claimability follows delivery, so the site cannot offer a finished paper."""
+        for i, who in enumerate(("reader-a", "reader-b", "reader-c"), start=20):
+            self.claim_paper(issue=i, author=who)
+            self.deliver(issue=i, author=who)
+        r = self.claim_paper(issue=40, author="reader-d")
+        self.assertIn("complete", r["comment"])
+        self.assertEqual(state.load_claims()[40]["papers"], {})
 
 
 class TestClock(Base):
@@ -444,8 +551,8 @@ class TestConfirmSaysWhatItAttests(Base):
         self.claim_paper()
         self.claim_paper(pid="EEG-22", issue=ISSUE)
         body = self.comment(f"/received {PAPER} ref:1", actor=ORGANIZER)["comment"]
-        self.assertIn(f"Before `{PAPER}` can be graded", body)
-        self.assertNotIn("Before `EEG-22` can be graded", body)
+        self.assertIn(f"Before `{PAPER}` counts as a review", body)
+        self.assertNotIn("Before `EEG-22` counts as a review", body)
 
     def test_the_nudge_carries_it_too(self):
         """It is the nudge that reaches anyone whose receipt predates this wording —

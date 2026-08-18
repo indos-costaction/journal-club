@@ -20,7 +20,7 @@ The truth is a set of small per-entity JSON files. Everything the public site re
   - `claims/<issue>.json` — one file per claim issue; the dynamic truth (who holds what, deadlines, states).
   - `ledger/<claim-id>.json` — one file per graded review; the only thing that crosses from the private grading workspace into the public repo (5 axis scores, never the PDF).
 - **Derived, never hand-edited** (recomputed by `state.py` / `rank.py`):
-  - `docs/data/status.json` — per-paper live claims / completed reviews / reviews in flight / status / progress / outstanding need.
+  - `docs/data/status.json` — per-paper live claims / reviews confirmed / reviews graded / reviews awaiting sign-off / status / progress / outstanding need.
   - `docs/data/ranking.json` — the leaderboard.
 - **Build-time only, never committed** (`.gitignore`d): `docs/data/site.json` (repo slug),
   and the per-run workflow artifacts `comment.md`, `actions.json`, `notifications.json`.
@@ -69,6 +69,8 @@ deploy serves them same-origin. `claims/` and `ledger/` stay at repo root (the s
   Per-paper `reminded` markers guarantee each nudge fires once.
 - `grade.py` — organizer-only: enter the 5 rubric axis scores for one review into the ledger, flip the
   claim `submitted → completed` (floor passed) or `submitted → returned` (below floor), refresh aggregates.
+  Grading decides **points**; the review already counted from its `/confirm`. The one thing it still
+  changes on the board is the below-floor case, which frees the claim and reopens the paper.
 - `announce.py` — the **only** thing that talks to GitHub, and it runs **after** the push (see below).
   Reads `actions.json` + `comment.md` (`issue-ops` mode) or `notifications.json` (`sweep` mode), normalises
   both onto one `Intent` shape, and emits ordered `gh` argv from a pure `plan()`. A failed comment or close
@@ -102,10 +104,27 @@ three JSONs. `.github/ISSUE_TEMPLATE/claim.yml` is the claim form (paper IDs + a
                                          |
                                          +---/decline--> active (deadline restored)
 
-- `IN_FLIGHT = {active, pending, submitted}` — occupies a slot, counts against the 3-claim cap and toward a paper's live-claim count.
-- `DONE = {completed}` — a floor-passing review; counts toward the completion threshold.
+- `IN_FLIGHT = {active, pending}` — the paper is still out. Occupies a slot against the 3-claim cap and counts toward a paper's live-claim count.
+- `DELIVERED = {submitted, completed}` — **a finished review.** Counts toward the completion threshold and moves both ladders.
+- `DONE = {completed}` — delivered *and* graded above the floor. Counts for points, and only points.
+- `AWAITING_SIGNOFF = {pending}` — uploaded, not yet confirmed by its author; reported beside the confirmed count, never folded into it.
 - `FREED = {withdrawn, recalled, expired, returned, rejected}` — slot released, contributes nothing. (`recalled` is legacy pre-rename data; `rejected` is an organizer removing a review for a rules violation.)
 - `NEEDS_PARTICIPANT = {active, pending}` — the auto-close predicate in `issue_ops.py` and `sweep.py`. A thread closes when nothing on it needs the participant; `pending` is waiting on their `/confirm`, so closing it would strand the handshake.
+
+**A review is finished when its author signs it off, not when we grade it.** Until 2026-08-18
+the board moved only on a grade, and with an empty ledger that rendered six delivered reviews
+as *0 of 717 reviews in* with all 239 tiles untouched. Grading is a separate, later,
+organizer-side question about quality and points. So `submitted` is `DELIVERED`, not
+`IN_FLIGHT`: the copy has come back and the slot with it, which also means nobody is held at
+the cap by *our* backlog. Two consequences worth knowing:
+
+- **`participant_holds()` spans `IN_FLIGHT | DELIVERED`.** Without that, a freed slot lets
+  someone re-claim a paper they already reviewed and deliver a second review counting toward
+  the same three. It is the sharpest defect this model can produce.
+- **`returned` (graded below the floor) stays in `FREED`**, so grading can still take a review
+  back and a tile can regress from `done` to `partial`. Deliberate: at 2.0/5 the floor is a
+  "did you actually annotate it" bar, so the only reviews it retracts are ones the paper should
+  not be counting.
 
 **Why `pending` exists.** The LimeSurvey upload form is open-access and its per-paper link is
 published in a public issue, so an upload proves only that *someone* had the link — it cannot assert
@@ -115,6 +134,8 @@ that are load-bearing rather than incidental:
 
 - **`pending` cannot expire** — `sweep.py` only expires `active`, so receiving an upload stops the
   deadline clock. Someone who uploads on day 11 must not be expired on day 12 waiting on us.
+- **`/confirm` is what makes the review count**, which is what the attestation now says. It is
+  also what frees the slot, so the one action we need from them is the one that pays them back.
 - **`/confirm` is the one command an organizer cannot proxy** (`issue_ops.COMMAND_ACL`). Everything
   else on any thread is organizer-drivable; that exception is the whole point of the handshake.
 - **`/decline` is the other answer**, and it *is* proxyable — proxying an affirmation forges a
@@ -130,19 +151,24 @@ that are load-bearing rather than incidental:
   lives in the participant's own comment, which they can edit or delete.
 
 **A paper carries two derived states, and they answer different questions.** `paper_status()`
-is claimability: `done` at `COMPLETION_THRESHOLD` completed reviews, else `closed` at
+is claimability: `done` at `COMPLETION_THRESHOLD` confirmed reviews, else `closed` at
 `POOL_CLOSE_THRESHOLD` live claimants, else `open`. It is what the Claim button and the table
 badge read. `paper_progress()` is how far along it is: `done` at the threshold, else `partial`
-on any completed review, else `review` if anyone holds it, else `open`. It is what the hero
+on any confirmed review, else `review` if anyone holds it, else `open`. It is what the hero
 mosaic paints, in the four logo colours. Neither derives from the other — a paper at the
-5-claimant cap with nothing graded is `closed` and visibly *not started*, which is correct on
+5-claimant cap with nothing delivered is `closed` and visibly *not started*, which is correct on
 both counts. Both ship in `status.json`; the site never recomputes a threshold.
 
-Progress moves only on a **graded** review, so it can never contradict "needs 3". Uploads that
-have arrived but not been graded are `reviews_in_flight`, reported beside the graded count in
-the hover card and the table and never netted off `outstanding_need` — otherwise the public
-"reviews still needed" number would shrink every time somebody uploaded a file. `tests/test_site.py`
-pins all of this, including the mosaic's colour measurements against the navy hero.
+Both read the **confirmed** count (`state.delivered_count`), so grading moves neither and a tile
+can never be ahead of or behind the reviews the paper actually has. Uploads nobody has signed off
+are `reviews_awaiting_signoff`, reported beside the confirmed count in the hover card and the
+table and never netted off `outstanding_need` — the upload form is a public link, so a file on
+its own does not yet make a review. `reviews_graded` rides along for the hover card and the
+under-served bonus and drives nothing. Those three keys replaced `completed_reviews` /
+`reviews_in_flight` on 2026-08-18; `app.js` reads each through an accessor that accepts either
+vintage, because a cached script and a fresh `status.json` cross in the air.
+`tests/test_site.py` pins all of this, including the mosaic's colour measurements against the
+navy hero.
 
 `rank.py` counts a ledger entry only while its claim is still `completed` — the board follows the
 claim, not the ledger alone. Without that, `/reject`ing an already-graded review would remove it
@@ -160,9 +186,10 @@ everywhere except the leaderboard.
   text (no PyYAML here) for the ordering property no unit test can reach; `tests/test_suggest.py`
   covers the suggestion engine (parsing, verdicts, offline degradation, the organizer gate, accept
   idempotence, and that an id never lands in a retired gap); `tests/test_site.py` covers
-  the derived site data (the two ladders, `reviews_in_flight`, and that `outstanding_need` stays graded-only)
-  and lints the four files that independently spell out the progress vocabulary; `tests/test_pool.py` runs
-  against the *published* pool.
+  the derived site data (the two ladders, `reviews_awaiting_signoff`, that `outstanding_need` follows the
+  confirmed count, and that grading moves nothing on the board) and lints the four files that
+  independently spell out the progress vocabulary plus every `status.json` field `app.js` reads;
+  `tests/test_pool.py` runs against the *published* pool.
 - Time-dependent functions all take an explicit `now` for determinism. Keep it that way.
 - Run any entrypoint locally against the checked-in state: `python scripts/sweep.py`,
   `python scripts/rank.py`, `python scripts/grade.py --issue N --paper ID --engagement .. --grader you`.
