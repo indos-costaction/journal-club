@@ -8,13 +8,14 @@
   },
   "papers": {
     "EEG-01": {
-      "state": "pending",
+      "state": "submitted",
       "claimed_at": "2026-08-17T09:35:58Z",
       "due_at": "2026-08-29T09:35:58Z",
       "extended": false,
       "submission_ref": "178",
       "reminded": [],
-      "pending_since": "2026-08-18T07:20:17Z"
+      "pending_since": "2026-08-18T07:20:17Z",
+      "confirmed_at": "2026-08-18T08:05:50Z"
     }
   }
 }
