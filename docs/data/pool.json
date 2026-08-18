@@ -923,6 +923,19 @@
     "citation_count": 891
   },
   {
+    "id": "FMRI-16",
+    "modality": "fMRI",
+    "level": 1,
+    "title": "Supraspinal nociceptive networks in neuropathic pain after spinal cord injury",
+    "first_author": "Vincent Huynh",
+    "year": 2021,
+    "doi": "10.1002/hbm.25401",
+    "url": "https://doi.org/10.1002/hbm.25401",
+    "venue": "Human Brain Mapping",
+    "s2_id": "8b0b1405fea24dc838663589e2e3895a95e2aed5",
+    "citation_count": 29
+  },
+  {
     "id": "DMRI-R1",
     "modality": "dMRI",
     "level": 0,
