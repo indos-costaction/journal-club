@@ -158,7 +158,8 @@ def parse_modality(raw: str | None) -> str | None:
 @dataclass
 class Verdict:
     ident: Identifier
-    kind: str                     # known | retired | declined | new | unresolvable
+    kind: str                     # known | retired | declined | new
+                                  # | unresolvable | unknown_id
     detail: str = ""              # a pool id, a reason, or a citation
     meta: dict = field(default_factory=dict)
 
@@ -189,10 +190,17 @@ def verdict_for(ident: Identifier, pool: dict, fetch=None) -> Verdict:
     if not ident.resolvable:
         return Verdict(ident, "unresolvable")
 
-    meta = {}
+    meta, missing = {}, False
     if fetch is not None:
         try:
             meta = fetch(ident) or {}
+        except LookupError as exc:
+            # The identifier resolved to nothing — a typo, or a DOI that was never
+            # registered. Distinct from an outage on purpose: "we could not reach the
+            # metadata service" sends someone away to wait when what they need is to
+            # check what they pasted.
+            print(f"::warning::no such identifier {ident.key}: {exc}")
+            missing = True
         except Exception as exc:                      # noqa: BLE001 — any failure degrades
             print(f"::warning::lookup failed for {ident.key}: {exc}")
             meta = {}
@@ -204,6 +212,8 @@ def verdict_for(ident: Identifier, pool: dict, fetch=None) -> Verdict:
             return Verdict(ident, "known", _pool_by_doi(pool)[got])
         if got in params.DECLINED:
             return Verdict(ident, "declined", params.DECLINED[got])
+    if missing:
+        return Verdict(ident, "unknown_id")
     if not meta:
         return Verdict(ident, "new", "", {})
     cite = " · ".join(str(x) for x in (meta.get("title"), meta.get("venue"), meta.get("year")) if x)
@@ -402,7 +412,7 @@ def accept(argline: str, verdicts: list[Verdict], declared: str | None,
         if v.kind == "declined":
             out.reject(prose.t("accept.previously_declined", raw=v.ident.raw, why=v.detail))
             continue
-        if v.kind == "unresolvable":
+        if v.kind in ("unresolvable", "unknown_id"):
             out.reject(prose.t("accept.unresolvable", raw=v.ident.raw))
             continue
 
@@ -517,6 +527,7 @@ def render_triage(verdicts: list[Verdict]) -> str:
             "retired": lambda: prose.t("verdict.retired", pid=v.detail, why=retired_note(v.detail)),
             "declined": lambda: prose.t("verdict.declined", why=v.detail),
             "unresolvable": lambda: prose.t("verdict.unresolvable"),
+            "unknown_id": lambda: prose.t("verdict.unknown_id"),
             "new": lambda: (prose.t("verdict.new", cite=v.detail) if v.detail
                             else prose.t("verdict.new_unresolved")),
         }[v.kind]()
@@ -527,7 +538,7 @@ def render_triage(verdicts: list[Verdict]) -> str:
     # for an organizer to look at.
     if any(v.kind == "new" for v in verdicts):
         tail = prose.t("suggest.next_steps")
-    elif all(v.kind == "unresolvable" for v in verdicts):
+    elif all(v.kind in ("unresolvable", "unknown_id") for v in verdicts):
         tail = prose.t("suggest.nothing_resolvable")
     else:
         tail = prose.t("suggest.nothing_new")

@@ -66,6 +66,10 @@ def fetch_down(_ident):
     raise OSError("crossref unreachable")
 
 
+def fetch_404(_ident):
+    raise LookupError("not found")
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -202,6 +206,24 @@ class TestOfflineDegradation(Base):
         with contextlib.redirect_stdout(io.StringIO()):
             body = so.render_triage(so.triage(f"{NEW_DOI}\n", self.by_id(), fetch=fetch_down))
         self.assertIn("could not reach", body.lower())
+
+    def test_a_dead_identifier_is_not_reported_as_an_outage(self):
+        """Found live on #46: a DOI that resolves to nothing was answered with "we could
+        not reach the metadata service", which sends someone away to wait when what they
+        need is to check what they pasted."""
+        with contextlib.redirect_stdout(io.StringIO()):
+            v = so.verdict_for(so.Identifier(raw="x", doi="10.9999/nope"), self.by_id(),
+                               fetch=fetch_404)
+        self.assertEqual(v.kind, "unknown_id")
+        body = so.render_triage([v])
+        self.assertIn("does not resolve", body.lower())
+        self.assertNotIn("could not reach", body.lower())
+
+    def test_a_dead_identifier_cannot_be_accepted(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            out, pool = self.do_accept(" EEG", "10.9999/nope\n", fetch=fetch_404)
+        self.assertEqual(out.ok, [])
+        self.assertEqual(pool, POOL)
 
     def test_the_failure_is_a_warning_not_an_error(self):
         """An annotation on a green run, not a red one: triage did its job."""

@@ -324,6 +324,9 @@ considered before and not added — {why}
 ## verdict.unresolvable
 not a DOI or PMID we can resolve
 
+## verdict.unknown_id
+not in the pool, and this identifier does not resolve to anything. Worth double-checking it.
+
 ## verdict.new
 not in the pool — {cite}
 
