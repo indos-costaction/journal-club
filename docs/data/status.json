@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T06:37:06Z",
+  "generated_at": "2026-08-18T07:20:17Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -60,7 +60,7 @@
       "level": 1,
       "live_claims": 1,
       "completed_reviews": 0,
-      "reviews_in_flight": 0,
+      "reviews_in_flight": 1,
       "status": "open",
       "progress": "review",
       "outstanding_need": 3
