@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-18T08:29:20Z",
+  "generated_at": "2026-08-18T08:30:50Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -7,12 +7,12 @@
     "deadline_days": 12
   },
   "totals": {
-    "papers": 240,
+    "papers": 239,
     "done": 0,
     "closed": 0,
-    "open": 240,
+    "open": 239,
     "reviews_completed": 0,
-    "total_outstanding": 720
+    "total_outstanding": 717
   },
   "papers": {
     "EEG-R1": {
@@ -716,16 +716,6 @@
       "outstanding_need": 3
     },
     "FMRI-15": {
-      "modality": "fMRI",
-      "level": 1,
-      "live_claims": 0,
-      "completed_reviews": 0,
-      "reviews_in_flight": 0,
-      "status": "open",
-      "progress": "open",
-      "outstanding_need": 3
-    },
-    "FMRI-16": {
       "modality": "fMRI",
       "level": 1,
       "live_claims": 0,

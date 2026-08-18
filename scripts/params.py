@@ -145,6 +145,13 @@ RETIRED = {
     "CROSS-25": "reference-work entry — out of scope (\"Image Segmentation\", Encyclopedia "
                 "of Database Systems). Same unit problem as a textbook: a survey entry "
                 "states consensus rather than making a claim a reviewer can contest",
+    "FMRI-16": "assigned on 2026-08-18 by the end-to-end check of the /accept-paper "
+               "pipeline (Huynh 2021, 10.1002/hbm.25401) and reverted minutes later. The "
+               "paper itself was never judged and may be proposed again — it would take a "
+               "new id. Retired rather than reused because the id was announced in a "
+               "public comment on #46, and that issue cannot be deleted, so something out "
+               "there still says FMRI-16 is that paper. Exactly the case the never-reuse "
+               "rule exists for, and cheaper to honour than to argue about",
 }
 
 # Papers proposed for the pool and turned down, keyed by lowercase DOI. RETIRED's sibling:
