@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-19T06:38:00Z",
+  "generated_at": "2026-08-20T06:39:19Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -151,12 +151,12 @@
     "EEG-13": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "EEG-14": {

@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-13": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-07-31T21:39:57Z",
       "due_at": "2026-08-19T21:39:57Z",
       "extended": true,
