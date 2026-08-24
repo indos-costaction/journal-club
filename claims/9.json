@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-15": {
-      "state": "pending",
+      "state": "submitted",
       "claimed_at": "2026-07-07T09:20:45Z",
       "due_at": "2026-07-26T09:20:45Z",
       "extended": true,
@@ -18,7 +18,8 @@
         "pre1",
         "conf3"
       ],
-      "pending_since": "2026-08-17T16:06:09Z"
+      "pending_since": "2026-08-17T16:06:09Z",
+      "confirmed_at": "2026-08-24T09:42:34Z"
     }
   }
 }
