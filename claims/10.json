@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-22": {
-      "state": "pending",
+      "state": "submitted",
       "claimed_at": "2026-07-07T09:25:37Z",
       "due_at": "2026-07-26T09:25:37Z",
       "extended": true,
@@ -18,7 +18,8 @@
         "pre1",
         "conf3"
       ],
-      "pending_since": "2026-08-17T16:06:20Z"
+      "pending_since": "2026-08-17T16:06:20Z",
+      "confirmed_at": "2026-08-24T09:42:53Z"
     }
   }
 }
