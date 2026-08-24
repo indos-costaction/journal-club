@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-24T06:51:27Z",
+  "generated_at": "2026-08-24T09:42:01Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -11,9 +11,9 @@
     "done": 0,
     "closed": 0,
     "open": 239,
-    "reviews_confirmed": 3,
+    "reviews_confirmed": 4,
     "reviews_graded": 0,
-    "total_outstanding": 714
+    "total_outstanding": 713
   },
   "papers": {
     "EEG-R1": {
@@ -250,13 +250,13 @@
     "EEG-23": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 1,
-      "reviews_confirmed": 0,
+      "live_claims": 0,
+      "reviews_confirmed": 1,
       "reviews_graded": 0,
-      "reviews_awaiting_signoff": 1,
+      "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
-      "outstanding_need": 3
+      "progress": "partial",
+      "outstanding_need": 2
     },
     "EEG-24": {
       "modality": "EEG",
