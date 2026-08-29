@@ -1,0 +1,19 @@
+{
+  "issue": 49,
+  "participant": "dmarti30",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-08-29T17:25:38Z"
+  },
+  "papers": {
+    "EEG-18": {
+      "state": "active",
+      "claimed_at": "2026-08-29T17:25:38Z",
+      "due_at": "2026-09-10T17:25:38Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
