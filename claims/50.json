@@ -1,0 +1,19 @@
+{
+  "issue": 50,
+  "participant": "dmarti30",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-08-29T17:27:16Z"
+  },
+  "papers": {
+    "MEG-06": {
+      "state": "active",
+      "claimed_at": "2026-08-29T17:27:16Z",
+      "due_at": "2026-09-10T17:27:16Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
