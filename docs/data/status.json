@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T17:27:16Z",
+  "generated_at": "2026-08-30T11:11:48Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -855,12 +855,12 @@
     "DMRI-04": {
       "modality": "dMRI",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "DMRI-05": {
