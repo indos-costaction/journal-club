@@ -1,0 +1,19 @@
+{
+  "issue": 52,
+  "participant": "jovanak1",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-04T13:24:28Z"
+  },
+  "papers": {
+    "EEG-32": {
+      "state": "active",
+      "claimed_at": "2026-09-04T13:24:28Z",
+      "due_at": "2026-09-16T13:24:28Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
