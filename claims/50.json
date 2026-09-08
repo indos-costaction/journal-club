@@ -10,8 +10,8 @@
     "MEG-06": {
       "state": "active",
       "claimed_at": "2026-08-29T17:27:16Z",
-      "due_at": "2026-09-10T17:27:16Z",
-      "extended": false,
+      "due_at": "2026-09-17T17:27:16Z",
+      "extended": true,
       "submission_ref": null,
       "reminded": []
     }
