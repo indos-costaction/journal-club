@@ -1,0 +1,19 @@
+{
+  "issue": 57,
+  "participant": "hassanmiir",
+  "attribution": "anonymous",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-17T20:54:06Z"
+  },
+  "papers": {
+    "CROSS-23": {
+      "state": "active",
+      "claimed_at": "2026-09-17T20:54:06Z",
+      "due_at": "2026-09-29T20:54:06Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
