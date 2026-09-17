@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-R4": {
-      "state": "active",
+      "state": "withdrawn",
       "claimed_at": "2026-09-17T13:00:07Z",
       "due_at": "2026-09-29T13:00:07Z",
       "extended": false,
