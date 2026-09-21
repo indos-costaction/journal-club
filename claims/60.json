@@ -1,0 +1,19 @@
+{
+  "issue": 60,
+  "participant": "flaviaveppo",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-21T14:23:06Z"
+  },
+  "papers": {
+    "FNIRS-17": {
+      "state": "active",
+      "claimed_at": "2026-09-21T14:23:06Z",
+      "due_at": "2026-10-03T14:23:06Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
