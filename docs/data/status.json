@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-20T10:34:20Z",
+  "generated_at": "2026-09-21T09:03:06Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -1383,12 +1383,12 @@
     "ANAT-39": {
       "modality": "anatMRI",
       "level": 1,
-      "live_claims": 0,
+      "live_claims": 1,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "open",
+      "progress": "review",
       "outstanding_need": 3
     },
     "PET-R1": {
