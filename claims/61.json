@@ -1,0 +1,19 @@
+{
+  "issue": 61,
+  "participant": "martanavarrobernad",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-22T11:34:06Z"
+  },
+  "papers": {
+    "EEG-25": {
+      "state": "active",
+      "claimed_at": "2026-09-22T11:34:06Z",
+      "due_at": "2026-10-04T11:34:06Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
