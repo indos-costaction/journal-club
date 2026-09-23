@@ -1,0 +1,19 @@
+{
+  "issue": 62,
+  "participant": "pelinakca17-lgtm",
+  "attribution": "attributed",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-23T21:26:19Z"
+  },
+  "papers": {
+    "EEG-32": {
+      "state": "active",
+      "claimed_at": "2026-09-23T21:26:19Z",
+      "due_at": "2026-10-05T21:26:19Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
