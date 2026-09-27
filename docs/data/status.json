@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-27T15:00:26Z",
+  "generated_at": "2026-09-27T15:02:08Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -2318,12 +2318,12 @@
     "FNIRS-15": {
       "modality": "fNIRS",
       "level": 1,
-      "live_claims": 0,
+      "live_claims": 1,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "open",
+      "progress": "review",
       "outstanding_need": 3
     },
     "FNIRS-16": {
