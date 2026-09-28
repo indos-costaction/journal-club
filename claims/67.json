@@ -1,0 +1,19 @@
+{
+  "issue": 67,
+  "participant": "emilynr",
+  "attribution": "anonymous",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-28T12:40:13Z"
+  },
+  "papers": {
+    "DMRI-R2": {
+      "state": "active",
+      "claimed_at": "2026-09-28T12:40:13Z",
+      "due_at": "2026-10-10T12:40:13Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
