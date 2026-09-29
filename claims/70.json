@@ -1,0 +1,19 @@
+{
+  "issue": 70,
+  "participant": "natsumi9589",
+  "attribution": "anonymous",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-09-29T22:26:30Z"
+  },
+  "papers": {
+    "FMRI-03": {
+      "state": "active",
+      "claimed_at": "2026-09-29T22:26:30Z",
+      "due_at": "2026-10-11T22:26:30Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
