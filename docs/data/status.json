@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-29T22:26:30Z",
+  "generated_at": "2026-09-30T11:52:39Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -327,7 +327,7 @@
     "EEG-30": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 2,
+      "live_claims": 1,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
@@ -2593,12 +2593,12 @@
     "CROSS-23": {
       "modality": "Cross-modality",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "CROSS-24": {
