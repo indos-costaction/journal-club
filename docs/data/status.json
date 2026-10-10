@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-09T12:31:41Z",
+  "generated_at": "2026-10-10T11:52:01Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -294,7 +294,7 @@
     "EEG-27": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 2,
+      "live_claims": 1,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
@@ -2120,12 +2120,12 @@
     "CT-26": {
       "modality": "CT",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "FNIRS-R1": {
@@ -2318,12 +2318,12 @@
     "FNIRS-15": {
       "modality": "fNIRS",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "FNIRS-16": {

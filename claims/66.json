@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-27": {
-      "state": "active",
+      "state": "expired",
       "claimed_at": "2026-09-28T11:40:00Z",
       "due_at": "2026-10-10T11:40:00Z",
       "extended": false,
