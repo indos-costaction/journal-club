@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-11T12:03:41Z",
+  "generated_at": "2026-10-12T14:21:23Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -657,12 +657,12 @@
     "FMRI-03": {
       "modality": "fMRI",
       "level": 1,
-      "live_claims": 1,
+      "live_claims": 0,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "review",
+      "progress": "open",
       "outstanding_need": 3
     },
     "FMRI-04": {
