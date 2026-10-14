@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-28": {
-      "state": "active",
+      "state": "withdrawn",
       "claimed_at": "2026-10-02T14:26:19Z",
       "due_at": "2026-10-14T14:26:19Z",
       "extended": false,
