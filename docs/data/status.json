@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T15:47:51Z",
+  "generated_at": "2026-11-02T15:50:20Z",
   "params": {
     "active_claim_cap": 3,
     "pool_close_threshold": 5,
@@ -371,12 +371,12 @@
     "EEG-34": {
       "modality": "EEG",
       "level": 1,
-      "live_claims": 0,
+      "live_claims": 1,
       "reviews_confirmed": 0,
       "reviews_graded": 0,
       "reviews_awaiting_signoff": 0,
       "status": "open",
-      "progress": "open",
+      "progress": "review",
       "outstanding_need": 3
     },
     "EEG-35": {
