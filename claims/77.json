@@ -1,0 +1,19 @@
+{
+  "issue": 77,
+  "participant": "mansora",
+  "attribution": "anonymous",
+  "consent": {
+    "gdpr": true,
+    "at": "2026-11-04T10:07:30Z"
+  },
+  "papers": {
+    "EEG-R1": {
+      "state": "active",
+      "claimed_at": "2026-11-04T10:07:30Z",
+      "due_at": "2026-11-16T10:07:30Z",
+      "extended": false,
+      "submission_ref": null,
+      "reminded": []
+    }
+  }
+}
