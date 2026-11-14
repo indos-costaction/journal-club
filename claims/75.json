@@ -8,7 +8,7 @@
   },
   "papers": {
     "EEG-34": {
-      "state": "active",
+      "state": "withdrawn",
       "claimed_at": "2026-11-02T15:50:20Z",
       "due_at": "2026-11-14T15:50:20Z",
       "extended": false,
